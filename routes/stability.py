@@ -6,7 +6,7 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 from components.forms import create_stability_form, create_stability_video_form
 import requests
 import time
-from IPython.display import Image, display
+
 
 @dataclass
 class StabilityAIConfig:
