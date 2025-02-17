@@ -1,65 +1,195 @@
 
-.image-preview { 
-    margin: 1rem 0; 
+:root {
+    --bg-dark: #1a1a1a;
+    --bg-darker: #141414;
+    --text-light: #ffffff;
+    --text-muted: #a0a0a0;
+    --primary-blue: #2563eb;
+    --primary-hover: #1d4ed8;
+    --border-color: #333333;
+    --content-bg: #1e1e1e;
 }
-.image-results img { 
-    max-width: 100%; 
-    margin: 1rem 0; 
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+    margin: 0;
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, sans-serif;
 }
-.parameters-grid { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
-    gap: 1rem; 
+
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
-.control-strength-container {
-    margin-top: 1rem;
+
+.header-grid {
+    background-color: var(--bg-darker);
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: 60px;
 }
-.image-upload-area {
-    margin: 1rem 0;
-    padding: 1rem;
-    border: 2px dashed #ccc;
+
+.header-title {
+    display: flex;
+    flex-direction: column;
+}
+
+.header-title h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.welcome-text {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.logout-btn {
+    background-color: transparent;
+    color: var(--primary-blue);
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--primary-blue);
     border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
 }
 
-
-.generated-image {
-    margin: 2rem 0;
-    padding: 1rem;
-    background: #f5f5f5;
-    border-radius: 8px;
+.logout-btn:hover {
+    background-color: var(--primary-blue);
+    color: white;
 }
 
-.generated-image img {
-    width: 100%;
-    height: auto;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.main-layout {
+    display: flex;
+    margin-top: 60px;
+    min-height: calc(100vh - 60px);
 }
 
-#stability-results {
-    min-height: 200px;
+.side-menu-container {
+    width: 250px;
+    background-color: var(--bg-darker);
+    border-right: 1px solid var(--border-color);
+    position: fixed;
+    top: 60px;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    padding-top: 1rem;
 }
 
-.error {
-    color: #dc3545;
-    padding: 1rem;
-    background: #f8d7da;
-    border-radius: 4px;
-    margin: 1rem 0;
-}
-
-/* In your static/css/styles.css */
-.htmx-indicator {
-    display: none;
+.content-area {
+    flex-grow: 1;
+    margin-left: 250px;
     padding: 2rem;
-    text-align: center;
-    color: #666;
+    background: var(--content-bg);
+    min-height: calc(100vh - 60px);
 }
 
-.htmx-request .htmx-indicator {
+.side-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.side-menu li {
+    padding: 0.25rem 1rem;
+}
+
+.side-menu .menu-item {
     display: block;
+    padding: 0.75rem 1rem;
+    color: var(--text-light);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
 }
 
-.htmx-request.generated-image {
-    opacity: 0.5;
+.side-menu .menu-item:hover {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.side-menu .menu-item.active {
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+/* Form styling */
+.form-section {
+    background: var(--bg-darker);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.form-section h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: var(--text-light);
+    font-size: 1.5rem;
+}
+
+input[type="text"],
+input[type="password"],
+textarea,
+select {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+    padding: 0.75rem;
+    border-radius: 4px;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+button {
+    background-color: var(--primary-blue);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+button:hover {
+    background-color: var(--primary-hover);
+}
+
+.parameters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.menu-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.menu-content h2 {
+    margin-bottom: 1rem;
+    color: var(--text-light);
+}
+
+.menu-content p {
+    color: var(--text-muted);
+    line-height: 1.6;
 }

@@ -1,4 +1,6 @@
 from fasthtml.common import *
+from .progress import create_progress_indicator  # Add this import
+
 
 def create_api_key_form(api_key='', action='/save-api-key', title="API Configuration"):
     """Create a reusable API key input form"""
@@ -172,6 +174,30 @@ def create_stability_form(api_key=''):
                 H3("Generation Parameters"),
                 Grid(
                     Div(
+                        Label("Style Preset:"),
+                        Select(
+                            Option("No style", value=""),
+                            Option("3D Model", value="3d-model"),
+                            Option("Analog Film", value="analog-film"), 
+                            Option("Anime", value="anime"),
+                            Option("Cinematic", value="cinematic"),
+                            Option("Comic Book", value="comic-book"),
+                            Option("Digital Art", value="digital-art"),
+                            Option("Enhance", value="enhance"),
+                            Option("Fantasy Art", value="fantasy-art"),
+                            Option("Isometric", value="isometric"),
+                            Option("Line Art", value="line-art"),
+                            Option("Low Poly", value="low-poly"),
+                            Option("Modeling Compound", value="modeling-compound"),
+                            Option("Neon Punk", value="neon-punk"),
+                            Option("Origami", value="origami"),
+                            Option("Photographic", value="photographic"),
+                            Option("Pixel Art", value="pixel-art"),
+                            Option("Tile Texture", value="tile-texture"),
+                            name='style_preset'
+                        )
+                    ),                    
+                    Div(
                         Label("Aspect Ratio:"),
                         Select(
                             Option("21:9", value="21:9"),
@@ -215,15 +241,10 @@ def create_stability_form(api_key=''):
                     type='submit',
                     hx_post="/api/stability/generate",
                     hx_target="#stability-results",
-                    hx_indicator="#loading-indicator"),
+                    hx_indicator=".progress-container"),
                 
-                Div(
-                    Div("Generating image...", 
-                        id="loading-indicator",
-                        cls="htmx-indicator"),
-                    id="stability-results", 
-                    cls="image-results"
-                ),
+                # Use the progress component
+                create_progress_indicator(),
                 
                 cls="generation-form"
             ),
@@ -288,3 +309,96 @@ def create_login_form(error_message=None):
             form
         )
     return Container(form)
+
+def create_stability_video_form(api_key=''):
+    """Create the Stability AI video generator form"""
+    return Div(
+        # API Key Form (reusing existing component)
+        create_api_key_form(
+            api_key=api_key, 
+            action='/save-stability-key',
+            title="Stability AI Configuration"
+        ),
+        
+        # Generator Form
+        Card(
+            Form(
+                # Image upload area
+                Div(
+                    Label("Source Image:"),
+                    Div("Supported dimensions: 1024x576, 576x1024, 768x768",
+                        cls="text-muted small mb-2"),
+                    Input(type="file", 
+                          name="file", 
+                          accept=".jpg,.jpeg,.png",
+                          id="video-source-input",
+                          required=True,
+                          hx_on="change: console.log('File selected:', this.files[0]?.name)",
+                          cls="file-input"),
+                    Div(id="video-image-preview", cls="image-preview"),
+                    cls="mb-4"
+                ),
+                
+                H3("Generation Parameters", cls="mb-4"),
+                
+                # Motion Amount
+                Div(
+                    Label("Motion Amount:"),
+                    Input(id='motion_bucket_id', 
+                          name='motion_bucket_id',
+                          type='range',
+                          value='127',
+                          min='1',
+                          max='255',
+                          cls="w-100"),
+                    Div("Lower values = less motion, Higher values = more motion",
+                        cls="text-muted small"),
+                    cls="mb-4"
+                ),
+                
+                # Image Adherence
+                Div(
+                    Label("Image Adherence:"),
+                    Input(id='cfg_scale',
+                          name='cfg_scale',
+                          type='range',
+                          value='1.8',
+                          min='0',
+                          max='10',
+                          step='0.1',
+                          cls="w-100"),
+                    Div("How closely the video follows the source image",
+                        cls="text-muted small"),
+                    cls="mb-4"
+                ),
+                
+                # Seed
+                Div(
+                    Label("Seed:"),
+                    Input(id='seed',
+                          name='seed',
+                          type='number',
+                          value='0',
+                          min='0',
+                          max='4294967294',
+                          cls="form-control"),
+                    Div("0 for random seed",
+                        cls="text-muted small"),
+                    cls="mb-4"
+                ),
+                
+                Button("Generate Video", 
+                       type='submit',
+                       cls="btn btn-primary w-100",
+                       hx_post="/api/stability/generate-video",
+                       hx_target="#video-result",
+                       hx_encoding="multipart/form-data"),  # Explicitly set encoding
+                cls="generation-form",
+                enctype="multipart/form-data"  # Ensure form has correct encoding
+            ),
+            header=H2("Stability AI Video Generation")
+        ),
+        
+        # Results area
+        Div(id="video-result", cls="mt-4")
+    )

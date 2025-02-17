@@ -35,12 +35,14 @@ def routes(rt):
             return base64.b64encode(content).decode('utf-8')
         return None
         
-
     @rt("/menuA")
     def get(req, sess):
         api_key = sess.get('leonardo_ai_key', '')
-        return create_leonardo_form(api_key)
-        
+        return Titled("Stability AI Generator",
+        # Add CSS and JS to headers
+        Link(rel="stylesheet", href="/static/css/styles.css"),
+        create_leonardo_form(api_key)
+        )
     
     
     @rt("/api/leonardo/generate")

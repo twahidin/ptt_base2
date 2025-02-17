@@ -8,7 +8,7 @@ login_redir = RedirectResponse('/login', status_code=303)
 def user_auth_before(req, sess):
     # Get auth from session
     auth = req.scope['auth'] = sess.get('auth', None)
-    print(f"Session auth check: {auth}")  # Debugging
+    
     # List of paths that don't require authentication
     public_paths = ['/', '/login']
     
@@ -41,44 +41,136 @@ app, rt = fast_app(
 # Set up all routes from the routes module
 setup_routes(app)
 
-# Add base route for index page
+# Add styling for the layout and components
+@rt("/")
+def head():
+    return Style("""
+        .app-container {
+            width: 100%;
+            min-height: 100vh;
+        }
+        
+        .header-grid {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--muted-border-color);
+        }
+        
+        .main-layout {
+            display: flex;
+            gap: 2rem;
+            padding: 0 1rem;
+        }
+        
+        .side-menu-container {
+            width: 250px;
+            flex-shrink: 0;
+        }
+        
+        .content-area {
+            flex-grow: 1;
+            padding: 1rem;
+            background: var(--card-background-color);
+            border-radius: 8px;
+            min-height: 500px;
+        }
+        
+        .side-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .side-menu li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .side-menu .menu-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--primary);
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        
+        .side-menu .menu-item:hover {
+            background: var(--primary);
+            color: var(--primary-inverse);
+        }
+        
+        .side-menu .menu-item.active {
+            background: var(--primary);
+            color: var(--primary-inverse);
+        }
+        
+        .error {
+            color: #842029;
+            background-color: #f8d7da;
+            border: 1px solid #f5c2c7;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+    """)
+
+# Base route for index page
+
 @rt("/")
 def get(req):
     auth = req.session.get('auth')
     
     if not auth:
-        return Titled("MOE Prompt Testing Tool", 
+        # Show login page if not authenticated
+        return Titled("MOE Prompt Testing Tool",
             Container(
-                H1("Click the button below to login using your PTT credentials"),
-                A("Login", href="/login", cls="button")
-            )
+                Div(
+                    P("Please log in with your PTT credentials to continue."),
+                    A("Login", href="/login", cls="button login-button"),
+                    cls="login-container"
+                )
+            ),
+            Link(rel="stylesheet", href="/static/css/styles.css")
         )
     
-    return Titled(f"MOE PPT Version 2",
+    # Show main application layout if authenticated
+    return Titled("MOE PPT Version 2",
+        Link(rel="stylesheet", href="/static/css/styles.css"),
         Container(
             Div(
                 Grid(
-                    H1(f"Welcome {auth}"),
-                    Div(A("Logout", href="/logout"), 
+                    Div(
+                        H1("MOE PPT Version 2"),
+                        Div(f"Welcome {auth}", cls="welcome-text"),
+                        cls="header-title"
+                    ),
+                    Div(A("Logout", href="/logout", cls="logout-btn"), 
                         style="text-align: right"),
                     cls="header-grid"
                 ),
                 Div(
                     Div(create_side_menu(), cls="side-menu-container"),
-                    Div(id="content-area", cls="content-area"),
+                    Div(
+                        Div(
+                            H2("Welcome to MOE PPT Version 2"),
+                            P("Select a generator from the menu on the left to begin."),
+                            cls="menu-content"
+                        ),
+                        id="content-area", 
+                        cls="content-area"
+                    ),
                     cls="main-layout"
                 ),
                 cls="app-container"
             )
         )
     )
-
-def create_side_menu(active_menu="menuA"):
+        
+def create_side_menu(active_menu=None):
     menu_items = [
         ("menuA", "Leonardo AI Generator"),
         ("menuB", "Stability AI Generator"),
-        ("menuC", "Menu C"),
-        ("menuD", "Menu D"),
+        ("menuC", "Stability AI Video Generator"),
     ]
     
     return Ul(*[
@@ -91,32 +183,30 @@ def create_side_menu(active_menu="menuA"):
         ) for id_, name in menu_items
     ], cls="side-menu")
 
+# Example route for menu content
+@rt("/menuA")
+def get():
+    return Div(
+        H2("Leonardo AI Generator"),
+        P("This is the Leonardo AI Generator content area."),
+        cls="menu-content"
+    )
 
-# Add styling for error messages
-@rt("/")
-def head():
-    return Style("""
-        .error {
-            color: #842029;
-            background-color: #f8d7da;
-            border: 1px solid #f5c2c7;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 4px;
-        }
-        .menu-list { list-style: none; padding: 0; }
-        .menu-list li { margin: 10px 0; }
-        .menu-list a { 
-            display: block;
-            padding: 10px;
-            background: var(--primary);
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-        }
-        .menu-list a:hover {
-            background: var(--primary-hover);
-        }
-    """)
+@rt("/menuB")
+def get():
+    return Div(
+        H2("Stability AI Generator"),
+        P("This is the Stability AI Generator content area."),
+        cls="menu-content"
+    )
+
+@rt("/menuC")
+def get():
+    return Div(
+        H2("Stability AI Video Generator"),
+        P("This is the Stability AI Video Generator content area."),
+        cls="menu-content"
+    )
+
 
 serve()
