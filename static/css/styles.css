@@ -1,0 +1,65 @@
+
+.image-preview { 
+    margin: 1rem 0; 
+}
+.image-results img { 
+    max-width: 100%; 
+    margin: 1rem 0; 
+}
+.parameters-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+    gap: 1rem; 
+}
+.control-strength-container {
+    margin-top: 1rem;
+}
+.image-upload-area {
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+}
+
+
+.generated-image {
+    margin: 2rem 0;
+    padding: 1rem;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.generated-image img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#stability-results {
+    min-height: 200px;
+}
+
+.error {
+    color: #dc3545;
+    padding: 1rem;
+    background: #f8d7da;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+/* In your static/css/styles.css */
+.htmx-indicator {
+    display: none;
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+}
+
+.htmx-request .htmx-indicator {
+    display: block;
+}
+
+.htmx-request.generated-image {
+    opacity: 0.5;
+}
