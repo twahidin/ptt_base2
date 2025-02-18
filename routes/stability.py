@@ -34,32 +34,119 @@ def routes(rt):
     def get(req):
         api_key = os.getenv("STABILITY_API_KEY")
         return Titled("Stability Image Generator",
-            # Add CSS with more specific styling
-            Style("""
-                .generated-image {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    width: 100%;
-                    max-width: 512px;
-                    margin: 0 auto;
-                }
-                .image-container {
-                    width: 100%;
-                    max-width: 512px;
-                    overflow: hidden;
-                    border-radius: 8px;
-                }
-                .result-image {
-                    width: 100%;
-                    height: auto;
-                    display: block;
-                }
-            """),
             Link(rel="stylesheet", href="/static/css/styles.css"),
             create_stability_form(api_key)
         )
         
+    @rt("/api/stability/generate")
+    async def post(req):
+        form = await req.form()
+        # api_key = req.session.get('stability_ai_key')
+        try:
+            # Get form parameters
+            # Validate required fields
+            api_key = form.get('api_key', '').strip()
+            if not api_key:
+                return Div("Please configure your Stability AI API key first", 
+                        cls="error alert alert-warning")
+            print(f"API Key: {api_key}")
+            prompt = form.get('prompt', '').strip()
+            if not prompt:
+                return Div("Please provide a prompt for the image generation", 
+                        cls="error alert alert-warning")
+            negative_prompt = form.get('negative_prompt', '')
+            aspect_ratio = form.get('aspect_ratio', '3:2')
+            seed = int(form.get('seed', '0'))
+            output_format = form.get('output_format', 'jpeg')
+            control_strength = float(form.get('control_strength', '0.7'))
+            style_preset = form.get('style_preset', 'photographic')
+            # Handle image upload if present
+            image_data = None
+            control_type = form.get('control_type', 'none')
+            if control_type in ['sketch', 'structure']:
+                image_file = form.get('image_file')
+                if image_file and image_file.file:
+                    image_data = await image_file.read()
+            
+            # Set up API endpoint based on control type
+            if control_type == 'none':
+                host = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
+            else:
+                host = f"https://api.stability.ai/v2beta/stable-image/control/{control_type}"
+            
+            # Prepare request parameters
+            params = {
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
+                "aspect_ratio": aspect_ratio,
+                "seed": str(seed),
+                "output_format": output_format,
+                "style_preset": style_preset
+            }
+            # Add style_preset to params if one was selected
+            if control_type != 'none':
+                params["control_strength"] = str(control_strength)
+            
+            headers = {
+                "Accept": "image/*",
+                "Authorization": f"Bearer {api_key}"
+            }
+
+            # Prepare multipart form data
+            fields = params.copy()
+            if image_data:
+                fields["image"] = ("image.jpg", image_data, "image/jpeg")
+            
+            encoder = MultipartEncoder(fields=fields)
+            headers["Content-Type"] = encoder.content_type
+            # Make the request
+            response = requests.post(host, headers=headers, data=encoder)
+            
+            if not response.ok:
+                error_msg = response.json().get('message', response.text)
+                print(f"API Error: {error_msg}")  # Debug log
+                return Div(f"API Error: {error_msg}", 
+                        cls="error alert alert-danger")
+
+            # Check if we actually got image data
+            if not response.content:
+                return Div("No image data received from API", 
+                        cls="error alert alert-warning")
+
+            try:
+                # Encode image data more carefully
+                image_b64 = base64.b64encode(response.content).decode('utf-8', errors='ignore')
+                
+                # Create a more structured response
+                return Div(
+                    Div(
+                        P("Image generated successfully!", cls="text-success"),
+                        cls="mb-3"
+                    ),
+                    Div(
+                        Img(
+                            src=f"data:image/jpeg;base64,{image_b64}", 
+                            alt="Generated image",
+                            cls="result-image max-w-full h-auto rounded shadow-lg"
+                        ),
+                        cls="image-container"
+                    ),
+                    id="stability-results",
+                    cls="generated-image mt-4"
+                )
+
+            except Exception as encode_error:
+                print(f"Error encoding image: {str(encode_error)}")
+                return Div(f"Error processing image data: {str(encode_error)}", 
+                        cls="error alert alert-danger")
+
+        except Exception as e:
+            print(f"Generator error: {str(e)}")  # Debug log
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")  # Full error trace
+            return Div(f"An error occurred: {str(e)}", 
+                    cls="error alert alert-danger")
+            
     @rt("/stability-type-change")
     async def post(req):
         form = await req.form()
@@ -131,120 +218,6 @@ def routes(rt):
             )
         return ""
 
-    @rt("/api/stability/generate")
-    async def post(req):
-        form = await req.form()
-        # api_key = req.session.get('stability_ai_key')
-        try:
-            # Get form parameters
-            # Validate required fields
-            api_key = form.get('api_key', '').strip()
-            print("API Key:", api_key)
-            if not api_key:
-                return Div("Please configure your Stability AI API key first", 
-                        cls="error alert alert-warning")
-            prompt = form.get('prompt', '').strip()
-            if not prompt:
-                return Div("Please provide a prompt", 
-                        cls="error alert alert-warning")
-            negative_prompt = form.get('negative_prompt', '')
-            aspect_ratio = form.get('aspect_ratio', '3:2')
-            seed = int(form.get('seed', '0'))
-            output_format = form.get('output_format', 'jpeg')
-            control_strength = float(form.get('control_strength', '0.7'))
-            style_preset = form.get('style_preset', 'photographic')
-            # Handle image upload if present
-            image_data = None
-            control_type = form.get('control_type', 'none')
-            if control_type in ['sketch', 'structure']:
-                image_file = form.get('image_file')
-                if image_file and image_file.file:
-                    image_data = await image_file.read()
-            
-            # Set up API endpoint based on control type
-            if control_type == 'none':
-                host = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
-            else:
-                host = f"https://api.stability.ai/v2beta/stable-image/control/{control_type}"
-            
-            # Prepare request parameters
-            params = {
-                "prompt": prompt,
-                "negative_prompt": negative_prompt,
-                "aspect_ratio": aspect_ratio,
-                "seed": str(seed),
-                "output_format": output_format,
-                "style_preset": style_preset
-            }
-            # Add style_preset to params if one was selected
-            if control_type != 'none':
-                params["control_strength"] = str(control_strength)
-            
-            headers = {
-                "Accept": "image/*",
-                "Authorization": f"Bearer {api_key}"
-            }
-
-            # Prepare multipart form data
-            fields = params.copy()
-            if image_data:
-                fields["image"] = ("image.jpg", image_data, "image/jpeg")
-            
-            encoder = MultipartEncoder(fields=fields)
-            headers["Content-Type"] = encoder.content_type
-
-            # Make the request
-            response = requests.post(host, headers=headers, data=encoder)
-            
-            if not response.ok:
-                error_msg = response.json().get('message', response.text)
-                print(f"API Error: {error_msg}")  # Debug log
-                return Div(f"API Error: {error_msg}", 
-                        cls="error alert alert-danger")
-
-            # Debug logging
-            print(f"Response status: {response.status_code}")
-            print(f"Response headers: {response.headers}")
-            print(f"Response content length: {len(response.content)}")
-
-            # Check if we actually got image data
-            if not response.content:
-                return Div("No image data received from API", 
-                        cls="error alert alert-warning")
-
-            try:
-                # Encode image data more carefully
-                image_b64 = base64.b64encode(response.content).decode('utf-8', errors='ignore')
-                
-                # Create a more structured response
-                return Div(
-                    Div(
-                        P("Image generated successfully!", cls="text-success"),
-                        cls="mb-3"
-                    ),
-                    Div(
-                        Img(
-                            src=f"data:image/jpeg;base64,{image_b64}", 
-                            alt="Generated image",
-                            cls="result-image max-w-full h-auto rounded shadow-lg"
-                        ),
-                        cls="image-container"
-                    ),
-                    id="stability-results",
-                    cls="generated-image mt-4"
-                )
-
-            except Exception as encode_error:
-                print(f"Error encoding image: {str(encode_error)}")
-                return Div(f"Error processing image data: {str(encode_error)}", 
-                        cls="error alert alert-danger")
-
-        except Exception as e:
-            print(f"Generator error: {str(e)}")  # Debug log
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")  # Full error trace
-            return Div(f"An error occurred: {str(e)}", 
-                    cls="error alert alert-danger")
             
     @rt("/clear-stability-results")
     async def post(req):
@@ -252,8 +225,8 @@ def routes(rt):
 
    # Stability video form and API handlers
     @rt("/menuC")
-    def get(req, sess):
-        api_key = os.getenv("STABILITY_API_KEY")
+    def get(req):
+        api_key= os.getenv("STABILITY_API_KEY")
         return Titled("Stability AI Video Generator",
             Link(rel="stylesheet", href="/static/css/styles.css"),
             create_stability_video_form(api_key)
@@ -263,8 +236,7 @@ def routes(rt):
     async def post(req):
         try:
             form = await req.form()
-            api_key = req.session.get('stability_ai_key')
-            
+            api_key = form.get('api_key', '').strip()
             if not api_key:
                 return Div("Please configure your Stability AI API key first", 
                         cls="error alert alert-warning")
