@@ -34,9 +34,30 @@ def routes(rt):
     def get(req):
         api_key = os.getenv("STABILITY_API_KEY")
         return Titled("Stability Image Generator",
-        # Add CSS and JS to headers
-        Link(rel="stylesheet", href="/static/css/styles.css"),
-        create_stability_form(api_key)
+            # Add CSS with more specific styling
+            Style("""
+                .generated-image {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    width: 100%;
+                    max-width: 512px;
+                    margin: 0 auto;
+                }
+                .image-container {
+                    width: 100%;
+                    max-width: 512px;
+                    overflow: hidden;
+                    border-radius: 8px;
+                }
+                .result-image {
+                    width: 100%;
+                    height: auto;
+                    display: block;
+                }
+            """),
+            Link(rel="stylesheet", href="/static/css/styles.css"),
+            create_stability_form(api_key)
         )
         
     @rt("/stability-type-change")
@@ -177,22 +198,57 @@ def routes(rt):
             
             if not response.ok:
                 error_msg = response.json().get('message', response.text)
+                print(f"API Error: {error_msg}")  # Debug log
                 return Div(f"API Error: {error_msg}", 
                         cls="error alert alert-danger")
 
-            return Div(
-                Img(
-                    src=f"data:image/jpeg;base64,{base64.b64encode(response.content).decode()}", 
-                    alt="Generated image",
-                    cls="result-image"
-                ),
-                id="stability-results",
-                cls="generated-image"
-            )
+            # Debug logging
+            print(f"Response status: {response.status_code}")
+            print(f"Response headers: {response.headers}")
+            print(f"Response content length: {len(response.content)}")
+
+            # Check if we actually got image data
+            if not response.content:
+                return Div("No image data received from API", 
+                        cls="error alert alert-warning")
+
+            try:
+                # Encode image data more carefully
+                image_b64 = base64.b64encode(response.content).decode('utf-8', errors='ignore')
+                
+                # Create a more structured response
+                return Div(
+                    Div(
+                        P("Image generated successfully!", cls="text-success"),
+                        cls="mb-3"
+                    ),
+                    Div(
+                        Img(
+                            src=f"data:image/jpeg;base64,{image_b64}", 
+                            alt="Generated image",
+                            cls="result-image max-w-full h-auto rounded shadow-lg"
+                        ),
+                        cls="image-container"
+                    ),
+                    id="stability-results",
+                    cls="generated-image mt-4"
+                )
+
+            except Exception as encode_error:
+                print(f"Error encoding image: {str(encode_error)}")
+                return Div(f"Error processing image data: {str(encode_error)}", 
+                        cls="error alert alert-danger")
 
         except Exception as e:
+            print(f"Generator error: {str(e)}")  # Debug log
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")  # Full error trace
             return Div(f"An error occurred: {str(e)}", 
                     cls="error alert alert-danger")
+            
+    @rt("/clear-stability-results")
+    async def post(req):
+        return Div(id="stability-results", cls="generated-image")
 
    # Stability video form and API handlers
     @rt("/menuC")
