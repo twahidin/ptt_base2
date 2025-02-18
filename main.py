@@ -130,12 +130,12 @@ def get(req):
                     cls="login-container"
                 )
             ),
-            Link(rel="stylesheet", href="/static/css/styles.css")
+            Link(rel="stylesheet", href="public/static/css/styles.css")
         )
     
     # Show main application layout if authenticated
     return Titled("MOE PPT Version 2",
-        Link(rel="stylesheet", href="/static/css/styles.css"),
+        Link(rel="stylesheet", href="public/static/css/styles.css"),
         Container(
             Div(
                 Grid(

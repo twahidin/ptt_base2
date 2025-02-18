@@ -29,7 +29,7 @@ def routes(rt):
     def get(req):
         api_key = os.environ["LEONARDO_API_KEY"]
         return Titled("Leonardo AI Generator",
-            Link(rel="stylesheet", href="/static/css/styles.css"),
+            Link(rel="stylesheet", href="public/static/css/styles.css"),
             create_leonardo_form(api_key)
         )
 

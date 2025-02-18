@@ -34,7 +34,7 @@ def routes(rt):
     def get(req):
         api_key = os.getenv("STABILITY_API_KEY")
         return Titled("Stability Image Generator",
-            Link(rel="stylesheet", href="/static/css/styles.css"),
+            Link(rel="stylesheet", href="public/static/css/styles.css"),
             create_stability_form(api_key)
         )
         
@@ -101,7 +101,8 @@ def routes(rt):
             headers["Content-Type"] = encoder.content_type
             # Make the request
             response = requests.post(host, headers=headers, data=encoder)
-            
+            print(f"API Response status: {response.status_code}")
+            print(f"API Response headers: {response.headers}")
             if not response.ok:
                 error_msg = response.json().get('message', response.text)
                 print(f"API Error: {error_msg}")  # Debug log
@@ -116,7 +117,8 @@ def routes(rt):
             try:
                 # Encode image data more carefully
                 image_b64 = base64.b64encode(response.content).decode('utf-8', errors='ignore')
-                
+                print(f"Generated image size: {len(response.content)} bytes")
+                print(f"Base64 string length: {len(image_b64)}")
                 # Create a more structured response
                 return Div(
                     Div(
@@ -228,7 +230,7 @@ def routes(rt):
     def get(req):
         api_key= os.getenv("STABILITY_API_KEY")
         return Titled("Stability AI Video Generator",
-            Link(rel="stylesheet", href="/static/css/styles.css"),
+            Link(rel="stylesheet", href="public/static/css/styles.css"),
             create_stability_video_form(api_key)
         )
 
