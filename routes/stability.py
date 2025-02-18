@@ -110,92 +110,89 @@ def routes(rt):
             )
         return ""
 
-
-
-
-    # @rt("/api/stability/generate")
-    # async def post(req):
-    #     form = await req.form()
-    #     # api_key = req.session.get('stability_ai_key')
-    #     try:
-    #         # Get form parameters
-    #         # Validate required fields
-    #         api_key = form.get('api_key', '').strip()
-    #         print("API Key:", api_key)
-    #         if not api_key:
-    #             return Div("Please configure your Stability AI API key first", 
-    #                     cls="error alert alert-warning")
-    #         prompt = form.get('prompt', '').strip()
-    #         if not prompt:
-    #             return Div("Please provide a prompt", 
-    #                     cls="error alert alert-warning")
-    #         negative_prompt = form.get('negative_prompt', '')
-    #         aspect_ratio = form.get('aspect_ratio', '3:2')
-    #         seed = int(form.get('seed', '0'))
-    #         output_format = form.get('output_format', 'jpeg')
-    #         control_strength = float(form.get('control_strength', '0.7'))
-    #         style_preset = form.get('style_preset', 'photographic')
-    #         # Handle image upload if present
-    #         image_data = None
-    #         control_type = form.get('control_type', 'none')
-    #         if control_type in ['sketch', 'structure']:
-    #             image_file = form.get('image_file')
-    #             if image_file and image_file.file:
-    #                 image_data = await image_file.read()
+    @rt("/api/stability/generate")
+    async def post(req):
+        form = await req.form()
+        # api_key = req.session.get('stability_ai_key')
+        try:
+            # Get form parameters
+            # Validate required fields
+            api_key = form.get('api_key', '').strip()
+            print("API Key:", api_key)
+            if not api_key:
+                return Div("Please configure your Stability AI API key first", 
+                        cls="error alert alert-warning")
+            prompt = form.get('prompt', '').strip()
+            if not prompt:
+                return Div("Please provide a prompt", 
+                        cls="error alert alert-warning")
+            negative_prompt = form.get('negative_prompt', '')
+            aspect_ratio = form.get('aspect_ratio', '3:2')
+            seed = int(form.get('seed', '0'))
+            output_format = form.get('output_format', 'jpeg')
+            control_strength = float(form.get('control_strength', '0.7'))
+            style_preset = form.get('style_preset', 'photographic')
+            # Handle image upload if present
+            image_data = None
+            control_type = form.get('control_type', 'none')
+            if control_type in ['sketch', 'structure']:
+                image_file = form.get('image_file')
+                if image_file and image_file.file:
+                    image_data = await image_file.read()
             
-    #         # Set up API endpoint based on control type
-    #         if control_type == 'none':
-    #             host = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
-    #         else:
-    #             host = f"https://api.stability.ai/v2beta/stable-image/control/{control_type}"
+            # Set up API endpoint based on control type
+            if control_type == 'none':
+                host = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
+            else:
+                host = f"https://api.stability.ai/v2beta/stable-image/control/{control_type}"
             
-    #         # Prepare request parameters
-    #         params = {
-    #             "prompt": prompt,
-    #             "negative_prompt": negative_prompt,
-    #             "aspect_ratio": aspect_ratio,
-    #             "seed": str(seed),
-    #             "output_format": output_format,
-    #             "style_preset": style_preset
-    #         }
-    #         # Add style_preset to params if one was selected
-    #         if control_type != 'none':
-    #             params["control_strength"] = str(control_strength)
+            # Prepare request parameters
+            params = {
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
+                "aspect_ratio": aspect_ratio,
+                "seed": str(seed),
+                "output_format": output_format,
+                "style_preset": style_preset
+            }
+            # Add style_preset to params if one was selected
+            if control_type != 'none':
+                params["control_strength"] = str(control_strength)
             
-    #         headers = {
-    #             "Accept": "image/*",
-    #             "Authorization": f"Bearer {api_key}"
-    #         }
+            headers = {
+                "Accept": "image/*",
+                "Authorization": f"Bearer {api_key}"
+            }
 
-    #         # Prepare multipart form data
-    #         fields = params.copy()
-    #         if image_data:
-    #             fields["image"] = ("image.jpg", image_data, "image/jpeg")
+            # Prepare multipart form data
+            fields = params.copy()
+            if image_data:
+                fields["image"] = ("image.jpg", image_data, "image/jpeg")
             
-    #         encoder = MultipartEncoder(fields=fields)
-    #         headers["Content-Type"] = encoder.content_type
+            encoder = MultipartEncoder(fields=fields)
+            headers["Content-Type"] = encoder.content_type
 
-    #         # Make the request
-    #         response = requests.post(host, headers=headers, data=encoder)
+            # Make the request
+            response = requests.post(host, headers=headers, data=encoder)
             
-    #         if not response.ok:
-    #             error_msg = response.json().get('message', response.text)
-    #             return Div(f"API Error: {error_msg}", 
-    #                     cls="error alert alert-danger")
+            if not response.ok:
+                error_msg = response.json().get('message', response.text)
+                return Div(f"API Error: {error_msg}", 
+                        cls="error alert alert-danger")
 
-    #         return Div(
-    #             Img(
-    #                 src=f"data:image/jpeg;base64,{base64.b64encode(response.content).decode()}", 
-    #                 alt="Generated image",
-    #                 cls="result-image"
-    #             ),
-    #             id="stability-results",
-    #             cls="generated-image"
-    #         )
+            return Div(
+                Img(
+                    src=f"data:image/jpeg;base64,{base64.b64encode(response.content).decode()}", 
+                    alt="Generated image",
+                    cls="result-image"
+                ),
+                id="stability-results",
+                cls="generated-image"
+            )
 
-    #     except Exception as e:
-    #         return Div(f"An error occurred: {str(e)}", 
-    #                 cls="error alert alert-danger")
+        except Exception as e:
+            return Div(f"An error occurred: {str(e)}", 
+                    cls="error alert alert-danger")
 
    # Stability video form and API handlers
     @rt("/menuC")
