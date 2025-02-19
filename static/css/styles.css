@@ -256,3 +256,16 @@ button:hover {
     color: #721c24;
     border: 1px solid #f5c6cb;
 }
+
+
+
+.loading-message {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

@@ -8,6 +8,7 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 from components.forms import create_stability_form, create_stability_video_form
 import requests
 import time
+import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -28,16 +29,48 @@ class StabilityAIConfig:
     control_strength: float = 0.7
 
 def routes(rt):
-    
-    # Stability form and API handlers
+
     @rt("/menuB")
     def get(req):
         api_key = os.getenv("STABILITY_API_KEY")
         return Titled("Stability Image Generator",
-            Link(rel="stylesheet", href="public/static/css/styles.css"),
+            Link(rel="stylesheet", href="static/css/styles.css"),
             create_stability_form(api_key)
         )
-        
+    
+    @rt("/test-stability-loading")
+    def get(req):
+        return Div(
+            # Test button with loading
+            Button("Test Generation", 
+                type="submit",
+                hx_post="/test-delay",
+                hx_target="#test-results",
+                hx_indicator="#test-loading",
+                cls="bg-blue-500 text-white p-2 rounded"
+            ),
+            
+            # Loading indicator using same structure as form
+            Div(
+                P("Generating image... Please wait.", cls="loading-message"),
+                Div(cls="loading-spinner"),
+                id="test-loading",
+                cls="htmx-indicator"
+            ),
+            
+            # Results area
+            Div(id="test-results"),
+            
+            # Add CSS link
+            Link(rel="stylesheet", href="/static/css/styles.css")
+        )
+
+    @rt("/test-delay") 
+    async def post(req):
+        await asyncio.sleep(3)
+        return "Test complete!"
+    
+    
     @rt("/api/stability/generate")
     async def post(req):
         form = await req.form()
@@ -45,6 +78,7 @@ def routes(rt):
         try:
             # Get form parameters
             # Validate required fields
+            # Add loading state response
             api_key = form.get('api_key', '').strip()
             if not api_key:
                 return Div("Please configure your Stability AI API key first", 
@@ -100,7 +134,13 @@ def routes(rt):
             encoder = MultipartEncoder(fields=fields)
             headers["Content-Type"] = encoder.content_type
             # Make the request
-            response = requests.post(host, headers=headers, data=encoder)
+            response = requests.post(
+                        host, 
+                        headers=headers, 
+                        data=encoder,
+                        timeout=25  # Add timeout parameter
+                    )
+
             print(f"API Response status: {response.status_code}")
             print(f"API Response headers: {response.headers}")
             if not response.ok:
@@ -109,17 +149,12 @@ def routes(rt):
                 return Div(f"API Error: {error_msg}", 
                         cls="error alert alert-danger")
 
-            # Check if we actually got image data
-            if not response.content:
-                return Div("No image data received from API", 
-                        cls="error alert alert-warning")
-
-            try:
-                # Encode image data more carefully
+                    # Process successful response
+            if response.content:
                 image_b64 = base64.b64encode(response.content).decode('utf-8', errors='ignore')
                 print(f"Generated image size: {len(response.content)} bytes")
                 print(f"Base64 string length: {len(image_b64)}")
-                # Create a more structured response
+                
                 return Div(
                     Div(
                         P("Image generated successfully!", cls="text-success"),
@@ -133,21 +168,20 @@ def routes(rt):
                         ),
                         cls="image-container"
                     ),
-                    id="stability-results",
+                    id="results-area",
                     cls="generated-image mt-4"
                 )
-
-            except Exception as encode_error:
-                print(f"Error encoding image: {str(encode_error)}")
-                return Div(f"Error processing image data: {str(encode_error)}", 
-                        cls="error alert alert-danger")
+            else:
+                return Div("No image data received from API", 
+                        cls="error alert alert-warning")
 
         except Exception as e:
-            print(f"Generator error: {str(e)}")  # Debug log
+            print(f"Generator error: {str(e)}")
             import traceback
-            print(f"Traceback: {traceback.format_exc()}")  # Full error trace
+            print(f"Traceback: {traceback.format_exc()}")
             return Div(f"An error occurred: {str(e)}", 
                     cls="error alert alert-danger")
+            
             
     @rt("/stability-type-change")
     async def post(req):
@@ -230,7 +264,7 @@ def routes(rt):
     def get(req):
         api_key= os.getenv("STABILITY_API_KEY")
         return Titled("Stability AI Video Generator",
-            Link(rel="stylesheet", href="public/static/css/styles.css"),
+            Link(rel="stylesheet", href="/static/css/styles.css"),
             create_stability_video_form(api_key)
         )
 
