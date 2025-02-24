@@ -171,6 +171,7 @@ def create_side_menu(active_menu=None):
         ("menuA", "Leonardo AI Generator"),
         ("menuB", "Stability AI Generator"),
         ("menuC", "Stability AI Video Generator"),
+        ("menuD", "HTML 5 Generator"),
     ]
     
     return Ul(*[

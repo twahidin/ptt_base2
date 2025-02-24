@@ -137,8 +137,7 @@ def routes(rt):
             response = requests.post(
                         host, 
                         headers=headers, 
-                        data=encoder,
-                        timeout=25  # Add timeout parameter
+                        data=encoder
                     )
 
             print(f"API Response status: {response.status_code}")

@@ -1,6 +1,12 @@
 from fasthtml.common import *
 from .progress import create_progress_indicator  # Add this import
 import os
+import base64
+from pathlib import Path
+import tempfile
+import zipfile
+import io
+
 
 def create_login_form(error_message=None):
     """Create the login form with optional error message"""
@@ -513,4 +519,169 @@ def create_leonardo_form(api_key=None):
                    cls="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"),
             cls="mt-4"
         )
+    )
+    
+    
+def create_zip_file(html, css, js, sprites):
+    """Create a zip file with HTML, CSS, JS and sprites"""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('index.html', html)
+        zf.writestr('styles.css', css)
+        zf.writestr('script.js', js)
+        for name, content in sprites.items():
+            if content:
+                zf.writestr(f'sprites/{name}', content)
+    return zip_buffer.getvalue()
+
+def handle_file_upload(file_data):
+    """Handle file upload and return file content"""
+    if file_data and hasattr(file_data, 'file'):
+        return file_data.read()
+    return None
+
+def create_chat_component():
+    """Create the chat interface component"""
+    return Div(
+        Textarea(
+            placeholder="Enter your HTML5 creation prompt here...",
+            id="chat-input",
+            rows="4",
+            cls="w-full p-2 border rounded"
+        ),
+        Button(
+            "Generate",
+            type="button",
+            id="generate-btn",
+            cls="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
+        ),
+        Div(id="chat-history", cls="mt-4 h-48 overflow-y-auto border rounded p-2"),
+        cls="mb-4"
+    )
+
+def create_code_editors():
+    """Create code editor components"""
+    return Div(
+        details := Details(
+            Summary("Code Editors", cls="cursor-pointer p-2 bg-gray-100"),
+            Grid(
+                Div(
+                    H3("HTML"),
+                    Textarea(id="html-editor", rows="10", cls="w-full p-2 font-mono border rounded"),
+                    cls="p-2"
+                ),
+                Div(
+                    H3("CSS"),
+                    Textarea(id="css-editor", rows="10", cls="w-full p-2 font-mono border rounded"),
+                    cls="p-2"
+                ),
+                Div(
+                    H3("JavaScript"),
+                    Textarea(id="js-editor", rows="10", cls="w-full p-2 font-mono border rounded"),
+                    cls="p-2"
+                ),
+                cls="grid-cols-1 gap-4"
+            )
+        ),
+        cls="mt-4"
+    )
+
+def create_sprite_upload():
+    """Create sprite upload component"""
+    return Form(
+        H3("Sprite Upload", cls="mb-4"),
+        Grid(
+            Div(
+                Label("Background (PNG/JPEG)"),
+                Input(
+                    type="file",
+                    name="background",
+                    accept=".png,.jpg,.jpeg",
+                    id="background-upload",
+                    cls="block w-full"
+                ),
+                Div(id="background-preview", cls="mt-2 h-24 bg-gray-100 flex items-center justify-center")
+            ),
+            Div(
+                Label("Main Object (PNG/JPEG)"),
+                Input(
+                    type="file",
+                    name="main_object",
+                    accept=".png,.jpg,.jpeg",
+                    id="main-object-upload",
+                    cls="block w-full"
+                ),
+                Div(id="main-object-preview", cls="mt-2 h-24 bg-gray-100 flex items-center justify-center")
+            ),
+            *[Div(
+                Label(f"Support {i} (PNG/JPEG)"),
+                Input(
+                    type="file",
+                    name=f"support_{i}",
+                    accept=".png,.jpg,.jpeg",
+                    id=f"support-{i}-upload",
+                    cls="block w-full"
+                ),
+                Div(id=f"support-{i}-preview", cls="mt-2 h-24 bg-gray-100 flex items-center justify-center")
+            ) for i in range(3, 6)],
+            cls="grid-cols-2 gap-4"
+        ),
+        cls="mt-4"
+    )
+
+def create_html5_form(api_key=0):
+    return Grid(
+        # Left Column
+        Div(
+            H2("Generator Chat", cls="mb-4"),
+            create_chat_component(),
+            create_code_editors(),
+            cls="p-4 border-r"
+        ),
+        # Right Column
+        Div(
+            # Preview Section
+            Div(
+                H2("Preview", cls="mb-4"),
+                Iframe(
+                    id="preview-frame",
+                    cls="w-full h-64 border rounded",
+                    sandbox="allow-scripts"
+                ),
+                cls="mb-8"
+            ),
+            # Sprite Upload Section
+            create_sprite_upload(),
+            # File Upload/Download Section
+            Div(
+                H3("Project Files", cls="mb-4"),
+                Form(
+                    Input(
+                        type="file",
+                        name="project_zip",
+                        accept=".zip",
+                        id="project-upload",
+                        cls="block w-full mb-4"
+                    ),
+                    Button(
+                        "Upload Project",
+                        type="submit",
+                        cls="px-4 py-2 bg-blue-500 text-white rounded"
+                    ),
+                    action="/upload",
+                    method="post",
+                    enctype="multipart/form-data"
+                ),
+                Button(
+                    "Download Project",
+                    id="download-btn",
+                    cls="mt-4 px-4 py-2 bg-green-500 text-white rounded",
+                    hx_get="/download",
+                    hx_trigger="click"
+                ),
+                cls="mt-8"
+            ),
+            cls="p-4"
+        ),
+        cls="grid grid-cols-2 gap-4"  # Modified this line to enable two-column layout
     )
