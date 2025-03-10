@@ -1,0 +1,32 @@
+templates:
+  base_template: |
+    You are a helpful assistant. Speak in the first person and friendly.
+
+  recipe_template_1: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 1
+
+  recipe_template_2: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 2
+
+  recipe_template_3: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 3
+
+  recipe_template_4: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 4
+
+  recipe_template_5: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 5
+
+  recipe_template_6: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 6
+  
+  recipe_template_7: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 7
+
+  recipe_template_8: |
+    You are a helpful assistant. Speak in the first person and friendly. Template 8
+    
+    
+    
+    
+

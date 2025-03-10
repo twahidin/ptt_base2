@@ -32,10 +32,12 @@ beforeware = Beforeware(
     ]
 )
 
+
 # Create app with session support
 app, rt = fast_app(
     before=beforeware,
-    secret_key="your-secret-key-here"  # Add a secret key for sessions
+    secret_key="your-secret-key-here"
+    # Add a secret key for session
 )
 
 # Set up all routes from the routes module
@@ -172,6 +174,7 @@ def create_side_menu(active_menu=None):
         ("menuB", "Stability AI Generator"),
         ("menuC", "Stability AI Video Generator"),
         ("menuD", "HTML 5 Generator"),
+        #("menuE", "Lea Chatbot"),
     ]
     
     return Ul(*[
@@ -209,5 +212,19 @@ def get():
         cls="menu-content"
     )
 
+@rt("/menuD")
+def get():
+    return Div(
+        H2("HTML 5 Generator"),
+        P("This is the HTML 5 Generator content area."),
+        cls="menu-content"
+    )
 
+@rt("/menuE")
+def get():
+    return Div(
+        H2("Lea Chatbot"),
+        P("This is the Lea Chatbot content area."),
+        cls="menu-content"
+    )
 serve()

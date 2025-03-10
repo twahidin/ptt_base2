@@ -101,6 +101,7 @@ def routes(rt):
             height = int(form.get('height', 768))
             width = int(form.get('width', 1024))
             model_id = form.get('model_id', 'b24e16ff-06e3-43eb-8d33-4416c2d75876')
+            # b24e16ff-06e3-43eb-8d33-4416c2d75876
             
             # Initialize image data
             image_id = None
@@ -140,7 +141,7 @@ def routes(rt):
                     if not upload_response.ok:
                         return Div("Failed to upload image", 
                                 cls="error alert alert-danger")
-
+            print("Preset Style: ", preset_style )
             # Prepare generation payload
             url = "https://cloud.leonardo.ai/api/rest/v1/generations"
             payload = {
