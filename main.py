@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from starlette.responses import RedirectResponse
 from routes import setup_routes
+from starlette.middleware.sessions import SessionMiddleware
 
 # Create the app with authentication
 login_redir = RedirectResponse('/login', status_code=303)
@@ -32,12 +33,18 @@ beforeware = Beforeware(
     ]
 )
 
-
 # Create app with session support
 app, rt = fast_app(
     before=beforeware,
-    secret_key="your-secret-key-here"
-    # Add a secret key for session
+    secret_key="your-secret-key-here"  # Add a secret key for session
+)
+
+# Add session middleware
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="your-secret-key-here",  # Use the same secret key
+    session_cookie="fastapi_session",
+    max_age=14 * 24 * 60 * 60,  # 14 days in seconds
 )
 
 # Set up all routes from the routes module

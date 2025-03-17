@@ -1,15 +1,24 @@
-from fasthtml.common import *
+import os
+import re
 import base64
+import datetime
+from fasthtml.common import *
+from starlette.responses import RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
+
 from pathlib import Path
 import tempfile
 import zipfile
-import datetime
 import io
 from PIL import Image
 from components.html5_form import create_html5_form, create_code_editors
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# Global history backup storage
+# This will store history by user ID to handle multiple users
+GLOBAL_HISTORY = {}
 
 #try and load the environment variables
 if os.getenv("OPENAI_API_KEY") is None:
@@ -272,16 +281,166 @@ def process_image_for_openai(base64_data):
 def routes(rt):
     @rt('/menuD')
     def get(req):
+        """Initialize the HTML5 form and session"""
         api_key = os.getenv("OPENAI_API_KEY")
+        
+        # Initialize session if needed
+        if 'html5_history' not in req.session:
+            req.session['html5_history'] = []
+            print("Initialized empty history in session")
+        
+        # Debug print session state
+        print("\n----- MENU D DEBUG -----")
+        print(f"Session keys: {list(req.session.keys())}")
+        print(f"History size: {len(req.session.get('html5_history', []))}")
+        
         return Titled("HTML5 Project",
             Link(rel="stylesheet", href="static/css/styles.css"),
             create_html5_form(api_key)
         )
 
-# Complete fix for the preview endpoint with properly escaped JavaScript
-# This addresses the issue with leaked code appearing in the preview
+    @rt('/api/html5/undo')
+    async def post(req):
+        """Restore the previous state of the HTML5 content"""
+        try:
+            # Get user ID from session for history tracking
+            user_id = req.session.get('auth', 'anonymous')
+            
+            # Get a copy of the history to avoid reference issues
+            history = list(req.session.get('html5_history', []))
+            
+            # If session history is empty but we have global history, use that
+            if not history and user_id in GLOBAL_HISTORY:
+                history = GLOBAL_HISTORY[user_id]
+                print(f"Retrieved history from global backup. Size: {len(history)}")
+            
+            print("\n----- UNDO DEBUG -----")
+            print(f"Session keys: {list(req.session.keys())}")
+            print(f"History size before undo: {len(history)}")
+            print(f"Global history size for user {user_id}: {len(GLOBAL_HISTORY.get(user_id, []))}")
+            
+            if not history:
+                print("No history available to restore")
+                return Div(
+                    "No previous state available to restore",
+                    cls="bg-gray-800 p-4 rounded border border-amber-500"
+                )
+            
+            # Get the last state from history
+            previous_state = history.pop()
+            print("Restoring previous state:")
+            print(f"  HTML length: {len(previous_state['html'])}")
+            print(f"  CSS length: {len(previous_state['css'])}")
+            print(f"  JS length: {len(previous_state['js'])}")
+            
+            # Update session with the new history and current state
+            req.session['html5_history'] = list(history)  # Store a new copy
+            req.session['html'] = previous_state['html']
+            req.session['css'] = previous_state['css']
+            req.session['js'] = previous_state['js']
+            
+            # Also update global backup
+            GLOBAL_HISTORY[user_id] = list(history)
+            
+            print(f"History size after undo: {len(history)}")
+            print(f"Updated session keys: {list(req.session.keys())}")
+            print(f"Updated global history size: {len(GLOBAL_HISTORY.get(user_id, []))}")
 
-    # Modified preview endpoint
+            # Create preview content with the restored state
+            preview_content = f"""<!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                body {{
+                    background-color: #121212;
+                    color: #ffffff;
+                    margin: 0;
+                    padding: 0;
+                    font-family: Arial, sans-serif;
+                    min-height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                }}
+                /* User CSS */
+                {previous_state['css']}
+                </style>
+            </head>
+            <body>
+                <div id="content-container">
+                    {previous_state['html']}
+                </div>
+                <script>
+                // Initialize content and catch errors
+                try {{
+                    {previous_state['js']}
+                }} catch (error) {{
+                    console.error('Error in JavaScript execution:', error);
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = 'red';
+                    errorDiv.style.padding = '10px';
+                    errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
+                    document.body.appendChild(errorDiv);
+                }}
+                </script>
+            </body>
+            </html>"""
+            
+            # Encode the content as base64
+            import base64
+            encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
+            
+            return [
+                create_code_editors(previous_state['html'], previous_state['css'], previous_state['js']),
+                NotStr(f"""
+                <script>
+                (function() {{
+                    // Update the preview with the restored state
+                    document.getElementById('preview-container').innerHTML = `
+                        <iframe 
+                            src="data:text/html;base64,{encoded_content}" 
+                            width="100%" height="100%" 
+                            frameborder="0" 
+                            allowfullscreen="true" 
+                            style="background-color: #121212; display: block;">
+                        </iframe>
+                    `;
+                    
+                    // Update undo button state
+                    const undoButton = document.getElementById('undo-button');
+                    if (undoButton) {{
+                        // Check if there's more history available
+                        fetch('/api/html5/check-history')
+                            .then(response => response.json())
+                            .then(data => {{
+                                if (data.hasHistory) {{
+                                    undoButton.disabled = false;
+                                    undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                                }} else {{
+                                    undoButton.disabled = true;
+                                    undoButton.classList.add('opacity-50', 'cursor-not-allowed');
+                                }}
+                            }});
+                    }}
+                }})();
+                </script>
+                """)
+            ]
+            
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            return Div(
+                H3("Error Restoring Previous State", cls="text-xl font-bold text-red-600 mb-4"),
+                P(f"Error: {str(e)}", cls="mb-2"),
+                details := Details(
+                    Summary("View Error Details", cls="cursor-pointer text-blue-500"),
+                    Pre(error_details, cls="mt-2 p-4 bg-gray-100 overflow-auto text-xs")
+                ),
+                cls="error alert alert-danger p-4"
+            )
+
     @rt('/api/html5/preview')
     async def post(req):
         """Generate an interactive preview using the code from the editors"""
@@ -387,10 +546,12 @@ def routes(rt):
                 cls="p-4 bg-red-100 text-red-800 rounded"
             )
 
-    # Updated clear preview endpoint in html_5.py
     @rt('/api/html5/clear-preview')
     async def post(req):
         """Clear the preview and code"""
+        # Get user ID from session for history tracking
+        user_id = req.session.get('auth', 'anonymous')
+        
         # Clear session data
         if 'html' in req.session:
             del req.session['html']
@@ -398,6 +559,13 @@ def routes(rt):
             del req.session['css']
         if 'js' in req.session:
             del req.session['js']
+        if 'html5_history' in req.session:
+            del req.session['html5_history']
+        
+        # Clear global history for this user
+        if user_id in GLOBAL_HISTORY:
+            del GLOBAL_HISTORY[user_id]
+            print(f"Cleared global history for user {user_id}")
         
         # Return a clean placeholder div
         clean_preview_html = """
@@ -412,12 +580,20 @@ def routes(rt):
                 editorsContainer.innerHTML = '';
             }
             
-            // Hide buttons
+            // Hide and reset all buttons
             var runButton = document.getElementById('run-preview-button');
             var clearButton = document.getElementById('clear-button');
+            var undoButton = document.getElementById('undo-button');
+            var zipButton = document.getElementById('create-zip-button');
             
             if (runButton) runButton.classList.add('hidden');
             if (clearButton) clearButton.classList.add('hidden');
+            if (undoButton) {
+                undoButton.classList.add('hidden');
+                undoButton.disabled = true;
+                undoButton.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            if (zipButton) zipButton.classList.add('hidden');
             
             // Reset iterative mode
             var iterativeToggle = document.getElementById('iterative-toggle');
@@ -670,485 +846,294 @@ def routes(rt):
             """)
 
 
+    @rt('/api/html5/check-history')
+    async def get(req):
+        """Check if there is any history available"""
+        # Get user ID from session for history tracking
+        user_id = req.session.get('auth', 'anonymous')
+        
+        # Get a copy of the history to avoid reference issues
+        history = list(req.session.get('html5_history', []))
+        
+        # If session history is empty but we have global history, use that
+        if not history and user_id in GLOBAL_HISTORY:
+            history = GLOBAL_HISTORY[user_id]
+            print(f"Retrieved history from global backup. Size: {len(history)}")
+            
+            # Update session with global history
+            req.session['html5_history'] = list(history)
+            print("Updated session with global history")
+        
+        print("\n----- CHECK HISTORY DEBUG -----")
+        print(f"Session keys: {list(req.session.keys())}")
+        print(f"History size: {len(history)}")
+        print(f"Global history size for user {user_id}: {len(GLOBAL_HISTORY.get(user_id, []))}")
+        
+        if history:
+            print("History contents:")
+            for i, state in enumerate(history):
+                print(f"State {i + 1}:")
+                print(f"  HTML length: {len(state['html'])}")
+                print(f"  CSS length: {len(state['css'])}")
+                print(f"  JS length: {len(state['js'])}")
+        else:
+            print("No history found")
+            
+        # Return a simple JSON response
+        return {"hasHistory": len(history) > 0}
+
     @rt('/api/html5/generate-code')
     async def post(req):
         """Generate HTML5 code based on reference images and user prompt"""
         try:
-            # Parse form data
+            # Get user ID from session for history tracking
+            user_id = req.session.get('auth', 'anonymous')
+            
+            # Store current state in history before generating new code
+            current_html = req.session.get('html', '')
+            current_css = req.session.get('css', '')
+            current_js = req.session.get('js', '')
+            
+            print("\n----- HISTORY DEBUG -----")
+            print(f"Current HTML length: {len(current_html)}")
+            print(f"Current CSS length: {len(current_css)}")
+            print(f"Current JS length: {len(current_js)}")
+            
+            # Get form data for current state if session is empty
             form = await req.form()
-            print("----- Starting form parsing -----")
-            print(f"Form keys: {list(form.keys())}")
-            prompt = form.get('prompt', '')
-            openai_key = os.environ["OPENAI_API_KEY"]
-            anthropic_key = os.environ["ANTHROPIC_API_KEY"]
-            model = form.get('model', 'gpt-4o')  # Default to GPT-4o
+            form_html = form.get('html-editor', '')
+            form_css = form.get('css-editor', '')
+            form_js = form.get('js-editor', '')
             
-            # Check for iterative mode
-            is_iterative = form.get('iterative-toggle') == 'on'
-            print(f"Iterative mode setting from form: {form.get('iterative-toggle')}")
-            print(f"Iterative mode: {'ON' if is_iterative else 'OFF'}")
+            # Use form data if session is empty or if form has content
+            if (not (current_html or current_css or current_js)) or (form_html or form_css or form_js):
+                current_html = form_html
+                current_css = form_css
+                current_js = form_js
+                print("Got current state from form data")
+                print(f"Form HTML length: {len(current_html)}")
+                print(f"Form CSS length: {len(current_css)}")
+                print(f"Form JS length: {len(current_js)}")
             
-            # IMPORTANT: Enhanced session debugging
-            print("----- SESSION DEBUG -----")
-            print(f"Session keys: {list(req.session.keys())}")
-            for key in req.session.keys():
-                value = req.session.get(key, '')
-                value_len = len(str(value)) if value else 0
-                print(f"Session[{key}] length: {value_len}")
-                if value_len > 0 and value_len < 100 and isinstance(value, str):
-                    print(f"Session[{key}] preview: {value}")
-                elif value_len > 0 and isinstance(value, str):
-                    print(f"Session[{key}] preview: {value[:100]}...")
-            
-            # Get code from both session and form data (belt and suspenders approach)
-            # First try to get from session
-            existing_html = req.session.get('html', '')
-            existing_css = req.session.get('css', '')
-            existing_js = req.session.get('js', '')
-            
-            # Then check form data directly from code editors as backup
-            if not (existing_html or existing_css or existing_js):
-                print("No code found in session, trying form data...")
-                existing_html = form.get('html-editor', '')
-                existing_css = form.get('css-editor', '')
-                existing_js = form.get('js-editor', '')
-            
-            # Detailed debug output for retrieved code
-            print(f"Retrieved HTML content length: {len(existing_html)}")
-            print(f"Retrieved CSS content length: {len(existing_css)}")
-            print(f"Retrieved JS content length: {len(existing_js)}")
-            
-            # Show short previews of the retrieved content
-            if existing_html:
-                print(f"HTML preview: {existing_html[:100]}...")
-            if existing_css:
-                print(f"CSS preview: {existing_css[:100]}...")
-            if existing_js:
-                print(f"JS preview: {existing_js[:100]}...")
-            
-            # Check for API keys
-            if not openai_key and model.startswith(("gpt", "o1", "o3")):
-                return Div("Please configure your OpenAI API key first", 
-                        cls="error alert alert-warning")
-            if not anthropic_key and model.startswith("claude"):
-                return Div("Please configure your Anthropic API key first", 
-                        cls="error alert alert-warning")
-            
-            if not prompt:
-                return Div("Please provide a prompt for code generation", 
-                        cls="error alert alert-warning")
-
-            # Process uploaded images with improved logging
-            print("----- Processing image uploads -----")
-            
-            # For Claude: base64 data + media_type pairs
-            claude_image_data_list = []
-            # For OpenAI: data URLs
-            openai_image_data_list = []
-            
-            for i in range(5):
-                base64_data = form.get(f'image-data-{i}', '')
+            # Store in history if we have content
+            if current_html or current_css or current_js:
+                # Get existing history from session or global backup
+                history = req.session.get('html5_history', [])
                 
-                if base64_data and len(base64_data) > 100:  # Simple check to ensure it's likely valid base64 data
-                    print(f"Processing image data for slot {i}")
+                # If session history is empty but we have global history, use that
+                if not history and user_id in GLOBAL_HISTORY:
+                    history = GLOBAL_HISTORY[user_id]
+                    print(f"Retrieved history from global backup. Size: {len(history)}")
+                
+                # Create a copy of the history to avoid reference issues
+                history = list(history)
+                
+                current_state = {
+                    'html': current_html,
+                    'css': current_css,
+                    'js': current_js
+                }
+                
+                # Only add to history if this state is different from the last one
+                if not history or (history[-1]['html'] != current_html or 
+                                history[-1]['css'] != current_css or 
+                                history[-1]['js'] != current_js):
+                    history.append(current_state)
                     
-                    # Process for Claude
-                    claude_processed_data, claude_media_type = process_image_for_claude(base64_data)
-                    if claude_processed_data:
-                        claude_image_data_list.append({
-                            'data': claude_processed_data,
-                            'media_type': claude_media_type
-                        })
-                        print(f"Successfully processed image {i} for Claude (format: {claude_media_type})")
+                    # Store the updated history back in the session
+                    # Make a completely new copy to ensure it's stored properly
+                    req.session['html5_history'] = list(history)
                     
-                    # Process for OpenAI
-                    openai_data_url = process_image_for_openai(base64_data)
-                    if openai_data_url:
-                        openai_image_data_list.append(openai_data_url)
-                        print(f"Successfully processed image {i} for OpenAI")
+                    # Also store in global backup
+                    GLOBAL_HISTORY[user_id] = list(history)
+                    
+                    print(f"Added state to history. History size: {len(history)}")
+                    print("History contents:")
+                    for i, state in enumerate(history):
+                        print(f"State {i + 1}:")
+                        print(f"  HTML length: {len(state['html'])}")
+                        print(f"  CSS length: {len(state['css'])}")
+                        print(f"  JS length: {len(state['js'])}")
+            else:
+                print("No current state to store in history")
             
-            # Continue with model selection and API calls
-            print(f"Total images processed: {len(claude_image_data_list)} for Claude, {len(openai_image_data_list)} for OpenAI")
-            print(f"Using model: {model}")
+            # Get form data for the new code generation
+            prompt = form.get('prompt', '')
+            model = form.get('model', 'gpt-4o')
+            is_iterative = form.get('iterative-toggle') == 'on'
             
-            # System prompt design with reference to images
-            system_prompt = """
-            You are a web developer specialized in HTML5 game and interactive content creation.
+            # Get reference images
+            images = []
+            for i in range(5):
+                image_data = form.get(f'image-data-{i}')
+                if image_data:
+                    images.append(image_data)
             
-            Important:
-            - Use the provided reference images as inspiration or as elements to reference in your code.
-            - The images are provided as references only and should not be treated as the main objects of the interactive content.
-            - Your code should work without requiring these exact images to be available.
-            - Always return the complete code, with no omissions.
-            - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
-            - The HTML code must be properly wrapped in `<body>` and `</body>` tags.
-            - The CSS code must be properly wrapped in `<style>` and `</style>` tags.
-            - The JavaScript code must be properly wrapped in `<script>` and `</script>` tags.
-            - Do **not** include any other code or text outside these tags.
-            - Your code should be standalone, interactive, and visually engaging.
-            """
+            # Generate new code
+            html, css, js = await generate_html5_code(prompt, images, model, is_iterative)
             
-            # Create a visual banner for iterative mode
+            # Store the new state in session
+            req.session['html'] = html
+            req.session['css'] = css
+            req.session['js'] = js
+            
+            # Debug print the session keys to verify
+            print("Session keys after update:", list(req.session.keys()))
+            print(f"History in session: {len(req.session.get('html5_history', []))}")
+            print(f"History in global backup: {len(GLOBAL_HISTORY.get(user_id, []))}")
+
+            # Create preview content
+            preview_content = f"""<!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                body {{
+                    background-color: #121212;
+                    color: #ffffff;
+                    margin: 0;
+                    padding: 0;
+                    font-family: Arial, sans-serif;
+                    min-height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                }}
+                /* User CSS */
+                {css}
+                </style>
+            </head>
+            <body>
+                <div id="content-container">
+                    {html}
+                </div>
+                <script>
+                // Initialize content and catch errors
+                try {{
+                    {js}
+                }} catch (error) {{
+                    console.error('Error in JavaScript execution:', error);
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = 'red';
+                    errorDiv.style.padding = '10px';
+                    errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
+                    document.body.appendChild(errorDiv);
+                }}
+                </script>
+            </body>
+            </html>"""
+            
+            # Encode the content as base64
+            import base64
+            encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
+            
+            # Create iterative banner if needed
             iterative_banner = None
             if is_iterative:
                 iterative_banner = Div(
-                    H3("🔄 Iterative Mode Active", cls="text-xl font-bold mb-2"),
-                    P("Modifying existing code based on your instructions", cls="mb-0"),
-                    cls="bg-blue-600 text-white p-4 mb-4 rounded-lg shadow-md"
+                    "Iterative Mode: Using existing code as context",
+                    cls="bg-blue-900 text-blue-100 p-2 rounded mb-4"
                 )
-                
-                # Add iterative mode instructions to system prompt
-                system_prompt += """
-                
-                ITERATIVE MODE INSTRUCTIONS:
-                - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
-                - Maintain the same overall structure while making the improvements requested in the user's instructions.
-                - Focus on addressing the specific requests while preserving the existing functionality.
-                - Return the complete improved code with all three components properly wrapped.
-                """
-                
-                # Only add code to prompt if we actually have some code
-                has_existing_code = existing_html.strip() or existing_css.strip() or existing_js.strip()
-                if has_existing_code:
-                    print("Found existing code - adding to prompt for iteration")
-                    
-                    # Create a formatted version of the existing code to append to the prompt
-                    existing_code_block = """
-                    EXISTING CODE FOR ITERATION:
-
-                    HTML:
-                    ```html
-                    {}
-                    ```
-
-                    CSS:
-                    ```css
-                    {}
-                    ```
-
-                    JavaScript:
-                    ```javascript
-                    {}
-                    ```
-
-                    Please modify the above code according to my instructions while maintaining the same overall structure.
-                    """.format(existing_html, existing_css, existing_js)
-
-                    # Append the existing code to the prompt
-                    prompt = prompt + "\n\n" + existing_code_block
-                    
-                    # Debug output
-                    print("Prompt updated with existing code for iteration")
-                    print(f"Final prompt length: {len(prompt)}")
-                else:
-                    print("No existing code found for iteration")
             
-            print("Final system prompt:", system_prompt)
-            print(f"Starting API call to {model}...")
-        
-        # Rest of your code continues here...
+            # Return with a data URL for the iframe instead of a URL to preview-content
+            return [
+                iterative_banner if is_iterative else None,
+                create_code_editors(html, css, js),
+                NotStr(f"""
+                <script>
+                (function() {{
+                    // Clear existing dynamic buttons first
+                    const dynamicButtons = document.getElementById('dynamic-buttons');
+                    if (dynamicButtons) {{
+                        dynamicButtons.innerHTML = '';
+                    }}
 
-
-    
-
-            # Determine which AI service to use based on the model
-            if model.startswith("claude"):
-                # Use Anthropic/Claude
-                import anthropic
-                from anthropic._exceptions import OverloadedError, APIStatusError
-                
-                try:
-                    client = anthropic.Anthropic(api_key=anthropic_key)
+                    // Show and initialize buttons
+                    const runButton = document.getElementById('run-preview-button');
+                    const undoButton = document.getElementById('undo-button');
+                    const clearButton = document.getElementById('clear-button');
                     
-                    # Build message content with images if available
-                    message_content = [
-                        {
-                            "type": "text",
-                            "text": f"{system_prompt} \n\nYour task is: {prompt}"
-                        }
-                    ]
+                    // Remove any existing ZIP buttons first
+                    const existingZipButton = document.getElementById('create-zip-button');
+                    if (existingZipButton) {{
+                        existingZipButton.remove();
+                    }}
                     
-                    # Add images to the message content
-                    for img_data in claude_image_data_list:
-                        message_content.append({
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": img_data['media_type'],
-                                "data": img_data['data']
-                            }
-                        })
+                    if (runButton) {{
+                        runButton.classList.remove('hidden');
+                        console.log('Run button visible');
+                    }}
                     
-                    response = client.messages.create(
-                        model=model,
-                        max_tokens=4096,
-                        temperature=0.2,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": message_content
-                            }
-                        ]
-                    )
+                    if (undoButton) {{
+                        undoButton.classList.remove('hidden');
+                        // Check if there's history to enable/disable the button
+                        fetch('/api/html5/check-history')
+                            .then(response => response.json())
+                            .then(data => {{
+                                console.log('Checking undo history:', data);
+                                if (data.hasHistory) {{
+                                    console.log('History available - enabling undo button');
+                                    undoButton.disabled = false;
+                                    undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                                }} else {{
+                                    console.log('No history available - disabling undo button');
+                                    undoButton.disabled = true;
+                                    undoButton.classList.add('opacity-50', 'cursor-not-allowed');
+                                }}
+                            }})
+                            .catch(error => {{
+                                console.error('Error checking history:', error);
+                            }});
+                        console.log('Undo button initialized');
+                    }} else {{
+                        console.warn('Undo button not found in DOM');
+                    }}
                     
-                    if response:
-                        code = response.content[0].text.strip()
-                        # Extract components
-                        html, css, js = extract_components(code)
-                        
-                        # When code is successfully generated, after storing in session:
-                        # Store in session
-                        req.session['html'] = html
-                        req.session['css'] = css
-                        req.session['js'] = js
-                        print(f"Storing in session - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
-
-
-    
-                        # CHANGE HERE: Instead of using the preview-content endpoint,
-                        # create the complete HTML document directly
-                        preview_content = f"""<!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <style>
-                            body {{
-                                background-color: #121212;
-                                color: #ffffff;
-                                margin: 0;
-                                padding: 0;
-                                font-family: Arial, sans-serif;
-                                min-height: 100vh;
-                                display: flex;
-                                flex-direction: column;
-                            }}
-                            /* User CSS */
-                            {css}
-                            </style>
-                        </head>
-                        <body>
-                            <div id="content-container">
-                                {html}
+                    if (clearButton) {{
+                        clearButton.classList.remove('hidden');
+                        console.log('Clear button visible');
+                    }}
+                    
+                    // Create single ZIP button
+                    if (dynamicButtons && !document.getElementById('create-zip-button')) {{
+                        const zipButton = document.createElement('button');
+                        zipButton.id = 'create-zip-button';
+                        zipButton.className = 'action-button bg-gradient-to-r from-blue-500 to-indigo-600';
+                        zipButton.innerHTML = `
+                            <div class="flex items-center justify-center w-full">
+                                <svg viewBox="0 0 24 24" width="20" height="20" class="inline-block">
+                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z" fill="currentColor"/>
+                                </svg>
+                                <span class="ml-2">Create ZIP Package</span>
                             </div>
-                            <script>
-                            // Initialize content and catch errors
-                            try {{
-                                {js}
-                            }} catch (error) {{
-                                console.error('Error in JavaScript execution:', error);
-                                const errorDiv = document.createElement('div');
-                                errorDiv.style.color = 'red';
-                                errorDiv.style.padding = '10px';
-                                errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
-                                document.body.appendChild(errorDiv);
-                            }}
-                            </script>
-                        </body>
-                        </html>"""
+                        `;
                         
-                        # Encode the content as base64
-                        import base64
-                        encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
+                        // Add HTMX attributes
+                        zipButton.setAttribute('hx-post', '/api/html5/create-zip');
+                        zipButton.setAttribute('hx-target', '#zip-download-container');
+                        zipButton.setAttribute('hx-include', '[id="html-editor"],[id="css-editor"],[id="js-editor"]');
+                        zipButton.setAttribute('hx-swap', 'innerHTML');
                         
-                        # Return with a data URL for the iframe instead of a URL to preview-content
-                        return [
-                            iterative_banner if is_iterative else None,
-                            create_code_editors(html, css, js),
-                            NotStr(f"""
-                            <script>
-                            (function() {{
-                                // Show the buttons
-                                document.getElementById('run-preview-button').classList.remove('hidden');
-                                document.getElementById('clear-button').classList.remove('hidden');
-                                
-                                // Update the preview directly with the data URL
-                                document.getElementById('preview-container').innerHTML = `
-                                    <iframe 
-                                        src="data:text/html;base64,{encoded_content}" 
-                                        width="100%" height="100%" 
-                                        frameborder="0" 
-                                        allowfullscreen="true" 
-                                        style="background-color: #121212; display: block;">
-                                    </iframe>
-                                `;
-                            }})();
-                            </script>
-                            """)
-                        ]
-                
-                except OverloadedError:
-                    # Handle Claude API overload gracefully
-                    return Div(
-                        H3("Claude API is Currently Overloaded", cls="text-xl font-bold text-amber-600 mb-4"),
-                        P("The Claude API is experiencing high traffic right now. Please try one of the following:", 
-                        cls="mb-4"),
-                        Ul(
-                            Li("Wait a few minutes and try again"),
-                            Li("Switch to an OpenAI model using the dropdown above"),
-                            Li("Try with a slightly shorter prompt"),
-                            cls="list-disc pl-5 mb-4"
-                        ),
-                        Button(
-                            "Try with GPT-4o instead",
-                            cls="px-4 py-2 bg-blue-500 text-white rounded",
-                            hx_post="/api/html5/generate-code",
-                            hx_include="closest form",
-                            hx_vals='{"model": "gpt-4o"}',
-                            hx_target="#code-editors-container",
-                            hx_indicator="#loading-indicator"
-                        ),
-                        cls="p-4 border border-amber-400 bg-amber-50 rounded"
-                    )
+                        // Add to the dynamic buttons container
+                        dynamicButtons.appendChild(zipButton);
+                        console.log('ZIP button created');
+                    }}
                     
-                except APIStatusError as e:
-                    # Handle other API errors
-                    return Div(
-                        H3("Claude API Error", cls="text-xl font-bold text-red-600 mb-4"),
-                        P(f"Error: {str(e)}", cls="mb-4"),
-                        P("Please try an OpenAI model instead.", cls="mb-2"),
-                        Button(
-                            "Try with GPT-4o instead",
-                            cls="px-4 py-2 bg-blue-500 text-white rounded",
-                            hx_post="/api/html5/generate-code",
-                            hx_include="closest form",
-                            hx_vals='{"model": "gpt-4o"}',
-                            hx_target="#code-editors-container",
-                            hx_indicator="#loading-indicator"
-                        ),
-                        cls="p-4 border border-red-400 bg-red-50 rounded"
-                    )
-            else:
-                # Use OpenAI
-                from openai import OpenAI
-                
-                try:
-                    client = OpenAI(api_key=openai_key)
-                    
-                    # Build messages with images if available
-                    messages = [
-                        {"role": "system", "content": system_prompt}
-                    ]
-                    
-                    # Add user message with images if available
-                    user_message_content = []
-                    
-                    # Add text prompt
-                    user_message_content.append({
-                        "type": "text",
-                        "text": prompt
-                    })
-                    
-                    # Add images to the content
-                    for data_url in openai_image_data_list:
-                        user_message_content.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url": data_url
-                            }
-                        })
-                    
-                    # Add the user message with content
-                    messages.append({
-                        "role": "user",
-                        "content": user_message_content
-                    })
-                    
-                    response = client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        temperature=0.2,
-                    )
-                    
-                    if response:
-                        code = response.choices[0].message.content.strip()
-                        # Extract components
-                        html, css, js = extract_components(code)
-                        
-                        # When code is successfully generated, after storing in session:
-                        # Store in session
-                        req.session['html'] = html
-                        req.session['css'] = css
-                        req.session['js'] = js
-                        
-                        # Create iframe HTML for direct preview
-                        preview_content = f"""<!DOCTYPE html>
-                        <html>
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <style>
-                            body {{
-                                background-color: #121212;
-                                color: #ffffff;
-                                margin: 0;
-                                padding: 0;
-                                font-family: Arial, sans-serif;
-                                min-height: 100vh;
-                                display: flex;
-                                flex-direction: column;
-                            }}
-                            /* User CSS */
-                            {css}
-                            </style>
-                        </head>
-                        <body>
-                            <div id="content-container">
-                                {html}
-                            </div>
-                            <script>
-                            // Initialize content and catch errors
-                            try {{
-                                {js}
-                            }} catch (error) {{
-                                console.error('Error in JavaScript execution:', error);
-                                const errorDiv = document.createElement('div');
-                                errorDiv.style.color = 'red';
-                                errorDiv.style.padding = '10px';
-                                errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
-                                document.body.appendChild(errorDiv);
-                            }}
-                            </script>
-                        </body>
-                        </html>"""
-                        
-                        # Encode the content as base64
-                        import base64
-                        encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
-                        
-                        # Return with a data URL for the iframe instead of a URL to preview-content
-                        return [
-                            iterative_banner if is_iterative else None,
-                            create_code_editors(html, css, js),
-                            NotStr(f"""
-                            <script>
-                            (function() {{
-                                // Show the buttons
-                                document.getElementById('run-preview-button').classList.remove('hidden');
-                                document.getElementById('clear-button').classList.remove('hidden');
-                                
-                                // Update the preview directly with the data URL
-                                document.getElementById('preview-container').innerHTML = `
-                                    <iframe 
-                                        src="data:text/html;base64,{encoded_content}" 
-                                        width="100%" height="100%" 
-                                        frameborder="0" 
-                                        allowfullscreen="true" 
-                                        style="background-color: #121212; display: block;">
-                                    </iframe>
-                                `;
-                            }})();
-                            </script>
-                            """)
-                        ]
-                        
-                except Exception as e:
-                    return Div(
-                        H3("OpenAI API Error", cls="text-xl font-bold text-red-600 mb-4"),
-                        P(f"Error: {str(e)}", cls="mb-4"),
-                        cls="p-4 border border-red-400 bg-red-50 rounded"
-                    )
-                    
+                    // Update the preview directly with the data URL
+                    document.getElementById('preview-container').innerHTML = `
+                        <iframe 
+                            src="data:text/html;base64,{encoded_content}" 
+                            width="100%" height="100%" 
+                            frameborder="0" 
+                            allowfullscreen="true" 
+                            style="background-color: #121212; display: block;">
+                        </iframe>
+                    `;
+                }})();
+                </script>
+                """)
+            ]
+            
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
@@ -1175,3 +1160,257 @@ def routes(rt):
                 ),
                 cls="error alert alert-danger p-4"
             )
+
+async def generate_html5_code(prompt, images, model, is_iterative):
+    """Generate HTML5 code using the specified model"""
+    try:
+        # Get API keys
+        openai_key = os.environ["OPENAI_API_KEY"]
+        anthropic_key = os.environ["ANTHROPIC_API_KEY"]
+        
+        # Check for API keys
+        if not openai_key and model.startswith(("gpt", "o1", "o3")):
+            raise ValueError("Please configure your OpenAI API key first")
+        if not anthropic_key and model.startswith("claude"):
+            raise ValueError("Please configure your Anthropic API key first")
+        
+        if not prompt:
+            raise ValueError("Please provide a prompt for code generation")
+        
+        # Process uploaded images
+        claude_image_data_list = []
+        openai_image_data_list = []
+        
+        for base64_data in images:
+            if base64_data and len(base64_data) > 100:  # Simple check to ensure it's likely valid base64 data
+                # Process for Claude
+                claude_processed_data, claude_media_type = process_image_for_claude(base64_data)
+                if claude_processed_data:
+                    claude_image_data_list.append({
+                        'data': claude_processed_data,
+                        'media_type': claude_media_type
+                    })
+                
+                # Process for OpenAI
+                openai_data_url = process_image_for_openai(base64_data)
+                if openai_data_url:
+                    openai_image_data_list.append(openai_data_url)
+        
+        # System prompt design with reference to images
+        system_prompt = """
+        You are a web developer specialized in HTML5 game and interactive content creation.
+        
+        You have two tasks:
+        1. Create a new interactive content based on the user's prompt
+        2. Modify existing HTML, CSS, and JavaScript code that the user has provided, based on the user's instructions.
+        """
+        
+        # Initialize user_prompt with the original prompt
+        user_prompt = prompt
+        
+        # Add iterative mode instructions if needed
+        if is_iterative:
+            system_prompt += """
+            
+            ITERATIVE MODE INSTRUCTIONS:
+            - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
+            - Maintain the same overall structure while making the improvements requested in the user's instructions.
+            - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code.
+            - Return the complete improved code with all three components properly wrapped.
+            - Provide comments in the code to explain the changes you have made
+            - Your response should only contain the modified code, with no other text or comments.
+            """
+        else:
+            system_prompt += """
+            NEW CONTENT CREATION INSTRUCTIONS:
+            Important:
+            - Use the provided reference images as inspiration or as elements to reference in your code.
+            - The images are provided as references only and should not be treated as the main objects of the interactive content.
+            - Your code should work without requiring these exact images to be available.
+            - Always return the complete code, with no omissions.
+            - Provide comments in the code on what the code is doing and how it works.
+            - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
+            - The code should be self-contained and not require any external files or resources.
+            - The CSS code should have the following tags:
+            ```css
+            /*
+            with <style> tags
+            */
+            ```
+            - The JavaScript code should have the following tags:
+            ```javascript
+            /*
+            with <script> tags
+            */
+            ```
+            - The HTML code should have the following tags:
+            ```html
+            /*
+            with <body> tags
+            */
+            ``` 
+            """
+        
+        # Determine which AI service to use based on the model
+        if model.startswith("claude"):
+            # Use Anthropic/Claude
+            import anthropic
+            from anthropic._exceptions import OverloadedError, APIStatusError
+            
+            try:
+                client = anthropic.Anthropic(api_key=anthropic_key)
+                
+                # Build message content with images if available
+                message_content = [
+                    {
+                        "type": "text",
+                        "text": f"{system_prompt}\n\n{user_prompt}"
+                    }
+                ]
+                
+                # Add images to the message content
+                for img_data in claude_image_data_list:
+                    message_content.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": img_data['media_type'],
+                            "data": img_data['data']
+                        }
+                    })
+                
+                response = client.messages.create(
+                    model=model,
+                    max_tokens=4096,
+                    temperature=0.2,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": message_content
+                        }
+                    ]
+                )
+                
+                if response:
+                    code = response.content[0].text.strip()
+                    # Extract components
+                    html, css, js = extract_components(code)
+                    return html, css, js
+                
+            except OverloadedError:
+                raise ValueError("Claude API is currently overloaded. Please try again later or use a different model.")
+            except APIStatusError as e:
+                raise ValueError(f"Claude API error: {str(e)}")
+        else:
+            # Use OpenAI
+            from openai import OpenAI
+            
+            try:
+                client = OpenAI(api_key=openai_key)
+                
+                # Build messages with images if available
+                messages = [
+                    {"role": "system", "content": system_prompt}
+                ]
+                
+                # Add user message with images if available
+                user_message_content = []
+                
+                # Add text prompt
+                user_message_content.append({
+                    "type": "text",
+                    "text": prompt
+                })
+                
+                # Add images to the content
+                for data_url in openai_image_data_list:
+                    user_message_content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": data_url
+                        }
+                    })
+                
+                # Add the user message with content
+                messages.append({
+                    "role": "user",
+                    "content": user_message_content
+                })
+                
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=0.2,
+                )
+                
+                if response:
+                    code = response.choices[0].message.content.strip()
+                    # Extract components
+                    html, css, js = extract_components(code)
+                    return html, css, js
+                
+            except Exception as e:
+                raise ValueError(f"OpenAI API error: {str(e)}")
+                
+    except Exception as e:
+        raise ValueError(f"Error generating code: {str(e)}")
+
+def extract_components(code):
+    """Extract HTML, CSS, and JavaScript components from the generated code"""
+    try:
+        # Split the code into components
+        html = ""
+        css = ""
+        js = ""
+        
+        # Extract HTML
+        html_match = re.search(r'<body>(.*?)</body>', code, re.DOTALL)
+        if html_match:
+            html = html_match.group(1).strip()
+        
+        # Extract CSS
+        css_match = re.search(r'<style>(.*?)</style>', code, re.DOTALL)
+        if css_match:
+            css = css_match.group(1).strip()
+        
+        # Extract JavaScript
+        js_match = re.search(r'<script>(.*?)</script>', code, re.DOTALL)
+        if js_match:
+            js = js_match.group(1).strip()
+        
+        return html, css, js
+    except Exception as e:
+        raise ValueError(f"Error extracting components: {str(e)}")
+
+def process_image_for_claude(base64_data):
+    """Process image data for Claude API"""
+    try:
+        # Remove data URL prefix if present
+        if ',' in base64_data:
+            base64_data = base64_data.split(',')[1]
+        
+        # Determine media type
+        if base64_data.startswith('/9j/'):
+            return base64_data, 'image/jpeg'
+        elif base64_data.startswith('iVBORw0KGgo'):
+            return base64_data, 'image/png'
+        elif base64_data.startswith('R0lGODlh'):
+            return base64_data, 'image/gif'
+        else:
+            return None, None
+    except Exception as e:
+        print(f"Error processing image for Claude: {str(e)}")
+        return None, None
+
+def process_image_for_openai(base64_data):
+    """Process image data for OpenAI API"""
+    try:
+        # Remove data URL prefix if present
+        if ',' in base64_data:
+            base64_data = base64_data.split(',')[1]
+        
+        # Convert to data URL
+        return f"data:image/jpeg;base64,{base64_data}"
+    except Exception as e:
+        print(f"Error processing image for OpenAI: {str(e)}")
+        return None

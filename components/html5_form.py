@@ -279,20 +279,150 @@ def create_html5_form(api_key=None):
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             }
 
+            /* Action button styling */
+            .action-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.625rem 1.25rem;
+                color: white;
+                font-weight: 500;
+                border-radius: 0.5rem;
+                border: none;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                min-width: 140px;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .action-button::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(255, 255, 255, 0);
+                transition: background-color 0.3s ease;
+            }
+            
+            .action-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            }
+            
+            .action-button:hover::after {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+            
+            .action-button:active {
+                transform: translateY(1px);
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            }
+            
+            .action-button:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .action-button:disabled:hover {
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .action-button:disabled:hover::after {
+                background-color: rgba(255, 255, 255, 0);
+            }
+
             /* Make buttons more responsive on small screens */
             @media (max-width: 640px) {
                 #editor-buttons {
                     flex-direction: column;
                     align-items: stretch;
+                    gap: 0.75rem;
                 }
                 
-                #editor-buttons button {
+                .action-button {
+                    width: 100%;
                     margin-right: 0;
                     margin-bottom: 0.5rem;
                 }
+                
+                #dynamic-buttons {
+                    order: -1;
+                    margin-bottom: 0.5rem;
+                    width: 100%;
+                }
             }
-                            
-       
+            
+            /* Medium screens - 2 buttons per row */
+            @media (min-width: 641px) and (max-width: 1024px) {
+                #editor-buttons {
+                    justify-content: flex-start;
+                }
+                
+                .action-button {
+                    flex: 0 0 calc(50% - 0.5rem);
+                    margin-right: 0;
+                }
+                
+                #dynamic-buttons {
+                    flex: 0 0 100%;
+                    order: -1;
+                    margin-bottom: 0.75rem;
+                }
+            }
+            
+            /* Tab styling */
+            .tab-header {
+                display: flex;
+                border-bottom: 1px solid #2d3748;
+                background-color: #1a202c;
+                border-top-left-radius: 0.5rem;
+                border-top-right-radius: 0.5rem;
+                overflow: hidden;
+            }
+            
+            .tab {
+                padding: 0.75rem 1.25rem;
+                background: none;
+                border: none;
+                color: #a0aec0;
+                font-size: 0.875rem;
+                font-weight: 500;
+                cursor: pointer;
+                border-bottom: 2px solid transparent;
+                transition: all 0.2s ease;
+                flex: 1;
+                text-align: center;
+            }
+            
+            .tab:hover {
+                color: #fff;
+                background-color: #2d3748;
+            }
+            
+            .tab.active {
+                color: #fff;
+                border-bottom: 2px solid #4299e1;
+                background-color: #2d3748;
+                position: relative;
+            }
+            
+            .tab.active::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 2px;
+                background: linear-gradient(to right, #4299e1, #7f9cf5);
+            }
+            
         """),
         
         # Include TinyMCE script
@@ -396,7 +526,7 @@ def create_html5_form(api_key=None):
                        hx_post="/api/html5/generate-code",
                        hx_target="#code-editors-container",
                        hx_indicator="#loading-indicator",
-                       cls="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600"),
+                       cls="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
                 
                 # Loading and results container
                 Div(
@@ -410,8 +540,7 @@ def create_html5_form(api_key=None):
                     
                     # Editors container - will be populated by the generate endpoint
                     Div(id="code-editors-container", cls="mt-4"),
-                    #buttons container
-
+                    # Editor buttons container
                     Div(
                         # Run Preview button
                         Button("Run Preview",
@@ -419,39 +548,74 @@ def create_html5_form(api_key=None):
                             hx_post="/api/html5/preview",
                             hx_target="#preview-container",
                             hx_include="#html-editor,#css-editor,#js-editor",
-                            cls="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mr-2 hidden"),
+                            cls="action-button bg-gradient-to-r from-green-600 to-green-500 hidden"),
                         
-                        # Create ZIP Package button - Simplified for reliability
+                        # Undo button with icon
                         Button(
                             Div(
                                 Svg(
-                                    Path(d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z", fill="currentColor"),
-                                    viewBox="0 0 24 24", width="20", height="20"
+                                    Path(d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z", 
+                                         fill="currentColor"),
+                                    viewBox="0 0 24 24", 
+                                    width="20", 
+                                    height="20"
                                 ),
-                                Span("Create ZIP Package", cls="ml-2"),
-                                cls="flex items-center"
+                                Span("Undo", cls="ml-2"),
+                                cls="flex items-center justify-center w-full"
                             ),
-                            id="create-zip-button",
-                            hx_post="/api/html5/create-zip",
-                            hx_target="#zip-download-container",
-                            hx_include="[id='html-editor'],[id='css-editor'],[id='js-editor']",
+                            id="undo-button",
+                            hx_post="/api/html5/undo",
+                            hx_target="#code-editors-container",
                             hx_swap="innerHTML",
-                            cls="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mr-2 hidden"),
+                            disabled=True,
+                            cls="action-button bg-gradient-to-r from-blue-600 to-blue-500 hidden opacity-50 cursor-not-allowed",
+                            hx_trigger="click",
+                            hx_include="[id='html-editor'],[id='css-editor'],[id='js-editor']",
+                            hx_on_after_request="""
+                                if(event.detail.successful) {
+                                    // Check if there's more history available
+                                    fetch('/api/html5/check-history')
+                                        .then(response => response.json())
+                                        .then(data => {
+                                            if(data.hasHistory) {
+                                                this.disabled = false;
+                                                this.classList.remove('opacity-50', 'cursor-not-allowed');
+                                            } else {
+                                                this.disabled = true;
+                                                this.classList.add('opacity-50', 'cursor-not-allowed');
+                                            }
+                                        });
+                                }
+                            """
+                        ),
+                        
+                        # Container for buttons that will be added after generation
+                        Div(id="dynamic-buttons", cls="flex-grow"),
                         
                         # Clear All button
-                        Button("Clear All",
+                        Button(
+                            Div(
+                                Svg(
+                                    Path(d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z", fill="currentColor"),
+                                    viewBox="0 0 24 24", 
+                                    width="20", 
+                                    height="20"
+                                ),
+                                Span("Clear All", cls="ml-2"),
+                                cls="flex items-center justify-center w-full"
+                            ),
                             id="clear-button",
                             hx_post="/api/html5/clear-preview",
                             hx_target="#preview-container",
                             hx_trigger="click",
                             hx_swap="innerHTML",
-                            cls="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 hidden"),
+                            cls="action-button bg-gradient-to-r from-gray-600 to-gray-500 hidden"),
                         
                         # Container for ZIP download link (initially empty)
-                        Div(id="zip-download-container", cls="mt-4 w-full"),
+                        Div(id="zip-download-container", cls="mt-6 w-full"),
                         
                         id="editor-buttons",
-                        cls="mt-4 flex flex-wrap gap-2 items-start"
+                        cls="mt-6 flex flex-wrap justify-between items-center gap-4"
                     ),
                   # Add this script tag right after your button container in the HTML
 
@@ -674,7 +838,8 @@ def create_html5_form(api_key=None):
                         }
                         if (zipButton) {
                             zipButton.classList.remove('hidden');
-                            console.log('ZIP button visible');
+                            zipButton.style.display = 'inline-flex';  // Force display as flex
+                            console.log('ZIP button visible and set to display flex');
                         }
                         if (clearButton) {
                             clearButton.classList.remove('hidden');
@@ -693,21 +858,15 @@ def create_html5_form(api_key=None):
                         updateIterativeBadge();
                     }
                     
-                    // Handle the ZIP download container becoming visible
-                    if (event.detail.target.id === 'zip-download-container') {
-                        // Scroll to the download section
-                        const downloadContainer = document.getElementById('zip-download-container');
-                        if (downloadContainer) {
-                            // Add custom animation for emphasis
-                            downloadContainer.classList.add('animate-pulse');
-                            setTimeout(() => {
-                                downloadContainer.classList.remove('animate-pulse');
-                            }, 1000);
-                            
-                            // Scroll to make the download link visible
-                            downloadContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Additional check for ZIP button visibility after a delay
+                    setTimeout(function() {
+                        const zipButton = document.getElementById('create-zip-button');
+                        if (zipButton && zipButton.classList.contains('hidden')) {
+                            console.log('ZIP button still hidden after delay, forcing show');
+                            zipButton.classList.remove('hidden');
+                            zipButton.style.display = 'inline-flex';
                         }
-                    }
+                    }, 1000);
                 });
 
                 // Debugging code to troubleshoot the ZIP button
@@ -1076,6 +1235,37 @@ def create_html5_form(api_key=None):
                         };
                     });
                 });
+
+                // Update the JavaScript to handle undo button state
+                function updateUndoButtonState() {
+                    const undoButton = document.getElementById('undo-button');
+                    if (undoButton) {
+                        // Check if there's any history in the session
+                        fetch('/api/html5/check-history')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.hasHistory) {
+                                    undoButton.disabled = false;
+                                    undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                                } else {
+                                    undoButton.disabled = true;
+                                    undoButton.classList.add('opacity-50', 'cursor-not-allowed');
+                                }
+                            });
+                    }
+                }
+
+                // Update undo button state when code is generated
+                document.addEventListener('htmx:afterSwap', function(event) {
+                    if (event.detail.target.id === 'code-editors-container') {
+                        updateUndoButtonState();
+                    }
+                });
+
+                // Update undo button state on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    updateUndoButtonState();
+                });
         """)
     )
     
@@ -1138,41 +1328,15 @@ def create_code_editors(html="", css="", js=""):
         
         # Add simple CSS styles inline (no changes needed)
         Style("""
-            /* Tab styling */
-            .tab-header {
-                display: flex;
-                border-bottom: 1px solid #2d3748;
-                background-color: #1a202c;
-            }
-            
-            .tab {
-                padding: 10px 16px;
-                background: none;
-                border: none;
-                color: #a0aec0;
-                font-size: 14px;
-                font-weight: 500;
-                cursor: pointer;
-                border-bottom: 2px solid transparent;
-                transition: all 0.2s;
-            }
-            
-            .tab:hover {
-                color: #fff;
-                background-color: #2d3748;
-            }
-            
-            .tab.active {
-                color: #fff;
-                border-bottom: 2px solid #4299e1;
-                background-color: #2d3748;
-            }
-            
             /* Panel styling */
             .tab-panel {
                 display: none;
                 padding: 16px;
                 background-color: #1a202c;
+                border-bottom-left-radius: 0.5rem;
+                border-bottom-right-radius: 0.5rem;
+                border: 1px solid #2d3748;
+                border-top: none;
             }
             
             .tab-panel.active {
@@ -1185,11 +1349,20 @@ def create_code_editors(html="", css="", js=""):
                 min-height: 300px;
                 background-color: #2d3748;
                 color: #e2e8f0;
-                font-family: monospace;
-                padding: 12px;
+                font-family: 'Fira Code', 'Consolas', monospace;
+                padding: 1rem;
                 border: 1px solid #4a5568;
-                border-radius: 4px;
+                border-radius: 0.375rem;
                 resize: vertical;
+                line-height: 1.5;
+                font-size: 0.875rem;
+                transition: border-color 0.2s ease;
+            }
+            
+            .code-editor:focus {
+                outline: none;
+                border-color: #4299e1;
+                box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
             }
         """),
         
