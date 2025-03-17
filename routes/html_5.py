@@ -34,41 +34,71 @@ else:
 
 def extract_components(code):
     """Extract HTML, CSS, and JavaScript components from the generated code"""
-    html = ""
-    css = ""
-    js = ""
-    in_html = False
-    in_css = False  
-    in_js = False
-    
-    for line in code.splitlines():
-        if line.strip().startswith("<body>"):
-            in_html = True
-            continue
-        elif line.strip().startswith("</body>"):
-            in_html = False
-            continue
-        elif line.strip().startswith("<style>"):
-            in_css = True
-            continue
-        elif line.strip().startswith("</style>"):
-            in_css = False
-            continue
-        elif line.strip().startswith("<script>"):
-            in_js = True
-            continue
-        elif line.strip().startswith("</script>"):
-            in_js = False
-            continue
+    try:
+        # Print the first and last 100 characters of the code for debugging
+        code_preview = f"{code[:100]}...{code[-100:]}" if len(code) > 200 else code
+        print(f"Extracting components from code: {len(code)} chars. Preview: {code_preview}")
         
-        if in_html:
-            html += line + "\n"
-        elif in_css:
-            css += line + "\n"
-        elif in_js:
-            js += line + "\n"
-    
-    return html, css, js
+        # Split the code into components
+        html = ""
+        css = ""
+        js = ""
+        
+        # Primary extraction method: look for proper HTML tags
+        html_match = re.search(r'<body>(.*?)</body>', code, re.DOTALL)
+        if html_match:
+            html = html_match.group(1).strip()
+            print(f"Extracted HTML using <body> tags: {len(html)} chars")
+        
+        css_match = re.search(r'<style>(.*?)</style>', code, re.DOTALL)
+        if css_match:
+            css = css_match.group(1).strip()
+            print(f"Extracted CSS using <style> tags: {len(css)} chars")
+        
+        js_match = re.search(r'<script>(.*?)</script>', code, re.DOTALL)
+        if js_match:
+            js = js_match.group(1).strip()
+            print(f"Extracted JS using <script> tags: {len(js)} chars")
+        
+        # Fallback extraction: look for code blocks
+        if not html:
+            html_block = re.search(r'```html\s*(.*?)\s*```', code, re.DOTALL)
+            if html_block:
+                html = html_block.group(1).strip()
+                print(f"Extracted HTML from code block: {len(html)} chars")
+        
+        if not css:
+            css_block = re.search(r'```css\s*(.*?)\s*```', code, re.DOTALL)
+            if css_block:
+                css = css_block.group(1).strip()
+                print(f"Extracted CSS from code block: {len(css)} chars")
+        
+        if not js:
+            js_block = re.search(r'```javascript\s*(.*?)\s*```', code, re.DOTALL) or re.search(r'```js\s*(.*?)\s*```', code, re.DOTALL)
+            if js_block:
+                js = js_block.group(1).strip()
+                print(f"Extracted JS from code block: {len(js)} chars")
+        
+        # If still empty, try looser pattern matching for HTML content
+        if not html and not css and not js:
+            print("No components extracted. Trying alternative extraction methods.")
+            # Look for HTML patterns (elements, tags, etc.)
+            if '<div' in code or '<p>' in code or '<h1>' in code:
+                # Try to extract an HTML chunk
+                html_chunk = re.search(r'(<div.*?>.*?</div>|<h1>.*?</h1>|<p>.*?</p>)', code, re.DOTALL)
+                if html_chunk:
+                    html = html_chunk.group(1)
+                    print(f"Extracted HTML fragment using pattern matching: {len(html)} chars")
+        
+        print(f"Final extraction results - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+        return html, css, js
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error extracting components: {str(e)}\n{error_details}")
+        print(f"Original code length: {len(code)}")
+        print(f"Original code preview: {code[:500]}...")
+        raise ValueError(f"Error extracting components: {str(e)}")
 
 
 def create_zip_file(html, css, js):
@@ -970,12 +1000,66 @@ def routes(rt):
                     images.append(image_data)
             
             # Generate new code
-            html, css, js = await generate_html5_code(prompt, images, model, is_iterative)
-            
-            # Store the new state in session
-            req.session['html'] = html
-            req.session['css'] = css
-            req.session['js'] = js
+            try:
+                html, css, js = await generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js)
+                print(f"Successfully generated code - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                
+                # If in iterative mode and no content was returned, return an error
+                if is_iterative and not (html or css or js):
+                    raise ValueError("No content was generated in iterative mode. Please try again with different instructions.")
+                
+                # Store the new state in session
+                req.session['html'] = html
+                req.session['css'] = css
+                req.session['js'] = js
+            except Exception as e:
+                print(f"Error generating code: {str(e)}")
+                import traceback
+                error_details = traceback.format_exc()
+                print(f"Error details: {error_details}")
+                
+                # If in iterative mode, we can return the original content
+                if is_iterative and current_html and current_css and current_js:
+                    print("Returning original content due to error in iterative mode")
+                    html = current_html
+                    css = current_css
+                    js = current_js
+                    
+                    # Return with an error message
+                    return [
+                        Div(f"Error: {str(e)} - Using your existing code", cls="bg-red-800 text-white p-2 mb-4 rounded"),
+                        create_code_editors(html, css, js),
+                        NotStr(f"""
+                        <script>
+                            console.error("Error in code generation: {str(e)}");
+                        </script>
+                        """)
+                    ]
+                else:
+                    # If not in iterative mode or no content available, return the error
+                    return Div(
+                        H3("Error Generating Code", cls="text-xl font-bold text-red-600 mb-4"),
+                        P(f"Error: {str(e)}", cls="mb-2"),
+                        details := Details(
+                            Summary("View Error Details", cls="cursor-pointer text-blue-500"),
+                            Pre(error_details, cls="mt-2 p-4 bg-gray-100 overflow-auto text-xs")
+                        ),
+                        # Add a button to try with OpenAI instead
+                        Div(
+                            P("You can try using a different model:", cls="mt-4 mb-2"),
+                            Button(
+                                "Try with GPT-4o instead",
+                                cls="px-4 py-2 bg-blue-500 text-white rounded mr-2",
+                                hx_post="/api/html5/generate-code",
+                                hx_include="closest form",
+                                hx_vals='{"model": "gpt-4o"}',
+                                hx_target="#code-editors-container",
+                                hx_indicator="#loading-indicator"
+                            ),
+                            cls="mt-2"
+                        ),
+                        cls="error alert alert-danger p-4"
+                    )
             
             # Debug print the session keys to verify
             print("Session keys after update:", list(req.session.keys()))
@@ -1161,7 +1245,7 @@ def routes(rt):
                 cls="error alert alert-danger p-4"
             )
 
-async def generate_html5_code(prompt, images, model, is_iterative):
+async def generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js):
     """Generate HTML5 code using the specified model"""
     try:
         # Get API keys
@@ -1200,7 +1284,7 @@ async def generate_html5_code(prompt, images, model, is_iterative):
         system_prompt = """
         You are a web developer specialized in HTML5 game and interactive content creation.
         
-        You have two tasks:
+        You have to complete one of the following tasks:
         1. Create a new interactive content based on the user's prompt
         2. Modify existing HTML, CSS, and JavaScript code that the user has provided, based on the user's instructions.
         """
@@ -1210,6 +1294,9 @@ async def generate_html5_code(prompt, images, model, is_iterative):
         
         # Add iterative mode instructions if needed
         if is_iterative:
+            # Check if we have current code to include
+            has_current_code = bool(current_html.strip() or current_css.strip() or current_js.strip())
+            
             system_prompt += """
             
             ITERATIVE MODE INSTRUCTIONS:
@@ -1220,6 +1307,32 @@ async def generate_html5_code(prompt, images, model, is_iterative):
             - Provide comments in the code to explain the changes you have made
             - Your response should only contain the modified code, with no other text or comments.
             """
+            
+            # Add the current code to the prompt for iterative editing
+            if has_current_code:
+                user_prompt = f"""
+{prompt}
+
+Here is the existing HTML code:
+```html
+{current_html}
+```
+
+Here is the existing CSS code:
+```css
+{current_css}
+```
+
+Here is the existing JavaScript code:
+```javascript
+{current_js}
+```
+
+Please modify the code according to my instructions while maintaining the overall structure and functionality.
+"""
+                print(f"Added current code to prompt in iterative mode - HTML: {len(current_html)} chars, CSS: {len(current_css)} chars, JS: {len(current_js)} chars")
+            else:
+                print("Iterative mode enabled but no current code found to include")
         else:
             system_prompt += """
             NEW CONTENT CREATION INSTRUCTIONS:
@@ -1250,7 +1363,7 @@ async def generate_html5_code(prompt, images, model, is_iterative):
             */
             ``` 
             """
-        
+        print(f"System prompt: {system_prompt}")
         # Determine which AI service to use based on the model
         if model.startswith("claude"):
             # Use Anthropic/Claude
@@ -1292,11 +1405,24 @@ async def generate_html5_code(prompt, images, model, is_iterative):
                 )
                 
                 if response:
+                    print(f"Received response from Claude. Type: {type(response)}")
                     code = response.content[0].text.strip()
+                    print(f"Response content length: {len(code)} chars")
+                    
                     # Extract components
                     html, css, js = extract_components(code)
+                    
+                    # Verify we have content
+                    if not (html or css or js):
+                        print("WARNING: No content extracted from Claude response. Using original content.")
+                        # Return the original content if we couldn't extract anything
+                        if is_iterative and current_html and current_css and current_js:
+                            return current_html, current_css, current_js
+                    
                     return html, css, js
-                
+                else:
+                    print("Claude returned empty response")
+                    raise ValueError("Claude returned an empty response")
             except OverloadedError:
                 raise ValueError("Claude API is currently overloaded. Please try again later or use a different model.")
             except APIStatusError as e:
@@ -1319,7 +1445,7 @@ async def generate_html5_code(prompt, images, model, is_iterative):
                 # Add text prompt
                 user_message_content.append({
                     "type": "text",
-                    "text": prompt
+                    "text": user_prompt  # Use user_prompt instead of prompt to include the current code when in iterative mode
                 })
                 
                 # Add images to the content
@@ -1344,73 +1470,27 @@ async def generate_html5_code(prompt, images, model, is_iterative):
                 )
                 
                 if response:
+                    print(f"Received response from OpenAI. Type: {type(response)}")
                     code = response.choices[0].message.content.strip()
+                    print(f"Response content length: {len(code)} chars")
+                    
                     # Extract components
                     html, css, js = extract_components(code)
+                    
+                    # Verify we have content
+                    if not (html or css or js):
+                        print("WARNING: No content extracted from OpenAI response. Using original content.")
+                        # Return the original content if we couldn't extract anything
+                        if is_iterative and current_html and current_css and current_js:
+                            return current_html, current_css, current_js
+                    
                     return html, css, js
+                else:
+                    print("OpenAI returned empty response")
+                    raise ValueError("OpenAI returned an empty response")
                 
             except Exception as e:
                 raise ValueError(f"OpenAI API error: {str(e)}")
                 
     except Exception as e:
         raise ValueError(f"Error generating code: {str(e)}")
-
-def extract_components(code):
-    """Extract HTML, CSS, and JavaScript components from the generated code"""
-    try:
-        # Split the code into components
-        html = ""
-        css = ""
-        js = ""
-        
-        # Extract HTML
-        html_match = re.search(r'<body>(.*?)</body>', code, re.DOTALL)
-        if html_match:
-            html = html_match.group(1).strip()
-        
-        # Extract CSS
-        css_match = re.search(r'<style>(.*?)</style>', code, re.DOTALL)
-        if css_match:
-            css = css_match.group(1).strip()
-        
-        # Extract JavaScript
-        js_match = re.search(r'<script>(.*?)</script>', code, re.DOTALL)
-        if js_match:
-            js = js_match.group(1).strip()
-        
-        return html, css, js
-    except Exception as e:
-        raise ValueError(f"Error extracting components: {str(e)}")
-
-def process_image_for_claude(base64_data):
-    """Process image data for Claude API"""
-    try:
-        # Remove data URL prefix if present
-        if ',' in base64_data:
-            base64_data = base64_data.split(',')[1]
-        
-        # Determine media type
-        if base64_data.startswith('/9j/'):
-            return base64_data, 'image/jpeg'
-        elif base64_data.startswith('iVBORw0KGgo'):
-            return base64_data, 'image/png'
-        elif base64_data.startswith('R0lGODlh'):
-            return base64_data, 'image/gif'
-        else:
-            return None, None
-    except Exception as e:
-        print(f"Error processing image for Claude: {str(e)}")
-        return None, None
-
-def process_image_for_openai(base64_data):
-    """Process image data for OpenAI API"""
-    try:
-        # Remove data URL prefix if present
-        if ',' in base64_data:
-            base64_data = base64_data.split(',')[1]
-        
-        # Convert to data URL
-        return f"data:image/jpeg;base64,{base64_data}"
-    except Exception as e:
-        print(f"Error processing image for OpenAI: {str(e)}")
-        return None
