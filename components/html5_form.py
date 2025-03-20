@@ -457,11 +457,13 @@ def create_html5_form(api_key=None):
                 Div(
                     Label("Model:", cls="block mb-2"),
                     Select(
+                        #Gpt 4.5 
+                        Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
+                        Option("GPT-4.5", value="gpt-4.5-preview"),
                         Option("GPT-4o", value="gpt-4o"),
                         Option("GPT-4o Mini", value="gpt-4o-mini"),
                         Option("GPT-o1", value="o1"),
                         Option("GPT-o3-mini", value="o3-mini"),
-                        Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
                         Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
                         id="model-selector",
                         name="model",
@@ -478,7 +480,8 @@ def create_html5_form(api_key=None):
                                 type="checkbox",
                                 id="iterative-toggle",
                                 name="iterative-toggle",
-                                cls="sr-only peer"
+                                cls="sr-only peer",
+                                checked=True
                             ),
                             Div(
                                 cls="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600",

@@ -182,6 +182,7 @@ def create_side_menu(active_menu=None):
         ("menuC", "Stability AI Video Generator"),
         ("menuD", "HTML 5 Generator"),
         #("menuE", "Lea Chatbot"),
+        ("tokens", "Token Usage Monitoring"),
     ]
     
     return Ul(*[
@@ -234,4 +235,13 @@ def get():
         P("This is the Lea Chatbot content area."),
         cls="menu-content"
     )
+
+@rt("/tokens")
+def get():
+    return Div(
+        H2("Token Usage Monitoring"),
+        P("This is the Token Usage Monitoring content area."),
+        cls="menu-content"
+    )
+
 serve()

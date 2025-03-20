@@ -5,6 +5,7 @@ from .html_5 import routes as html_5_routes
 from .auth import routes as auth_routes
 from .home_page import routes as home_page_routes
 from .lea_chatbot import routes as lea_chatbot_routes
+from .token_routes import routes as token_routes
 
 def setup_routes(app):
     # Create routers for each module
@@ -14,6 +15,7 @@ def setup_routes(app):
     auth_router = APIRouter(prefix="")
     html_5_router = APIRouter(prefix="")
     lea_chatbot_router = APIRouter(prefix="")
+    token_router = APIRouter(prefix="")
     # Add routes to routers
 
     leonardo_routes(leonardo_router)
@@ -21,6 +23,7 @@ def setup_routes(app):
     auth_routes(auth_router)
     html_5_routes(html_5_router)
     lea_chatbot_routes(lea_chatbot_router)
+    token_routes(token_router)
     # Add routers to app
 
     leonardo_router.to_app(app)
@@ -28,3 +31,4 @@ def setup_routes(app):
     auth_router.to_app(app)
     html_5_router.to_app(app)
     lea_chatbot_router.to_app(app)
+    token_router.to_app(app)

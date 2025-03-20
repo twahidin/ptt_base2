@@ -13,6 +13,9 @@ import io
 from PIL import Image
 from components.html5_form import create_html5_form, create_code_editors
 
+# Import token tracking functionality
+import token_count
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -1364,6 +1367,11 @@ Please modify the code according to my instructions while maintaining the overal
             ``` 
             """
         print(f"System prompt: {system_prompt}")
+        
+        # Get user ID from session for token tracking
+        user_id = "anonymous"  # Default user ID
+        session_id = None
+        
         # Determine which AI service to use based on the model
         if model.startswith("claude"):
             # Use Anthropic/Claude
@@ -1392,6 +1400,19 @@ Please modify the code according to my instructions while maintaining the overal
                         }
                     })
                 
+                # Get token count for prompt
+                token_count_response = client.messages.count_tokens(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": message_content
+                        }
+                    ]
+                )
+                prompt_tokens = token_count_response.input_tokens
+                
+                # Make the actual API call
                 response = client.messages.create(
                     model=model,
                     max_tokens=4096,
@@ -1408,6 +1429,21 @@ Please modify the code according to my instructions while maintaining the overal
                     print(f"Received response from Claude. Type: {type(response)}")
                     code = response.content[0].text.strip()
                     print(f"Response content length: {len(code)} chars")
+                    
+                    # Record token usage
+                    completion_tokens = response.usage.output_tokens
+                    total_tokens = prompt_tokens + completion_tokens
+                    
+                    # Save token usage to database
+                    token_count.record_token_usage(
+                        model=model,
+                        prompt=prompt[:500] if prompt else None,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                        user_id=user_id,
+                        session_id=session_id
+                    )
                     
                     # Extract components
                     html, css, js = extract_components(code)
@@ -1463,6 +1499,7 @@ Please modify the code according to my instructions while maintaining the overal
                     "content": user_message_content
                 })
                 
+                # Make the API call
                 response = client.chat.completions.create(
                     model=model,
                     messages=messages,
@@ -1473,6 +1510,22 @@ Please modify the code according to my instructions while maintaining the overal
                     print(f"Received response from OpenAI. Type: {type(response)}")
                     code = response.choices[0].message.content.strip()
                     print(f"Response content length: {len(code)} chars")
+                    
+                    # Record token usage
+                    prompt_tokens = response.usage.prompt_tokens
+                    completion_tokens = response.usage.completion_tokens
+                    total_tokens = response.usage.total_tokens
+                    
+                    # Save token usage to database
+                    token_count.record_token_usage(
+                        model=model,
+                        prompt=prompt[:500] if prompt else None,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                        user_id=user_id,
+                        session_id=session_id
+                    )
                     
                     # Extract components
                     html, css, js = extract_components(code)
