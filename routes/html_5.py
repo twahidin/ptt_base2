@@ -1117,10 +1117,16 @@ def routes(rt):
             # Create iterative banner if needed
             iterative_banner = None
             if is_iterative:
-                iterative_banner = Div(
-                    "Iterative Mode: Using existing code as context",
-                    cls="bg-blue-900 text-blue-100 p-2 rounded mb-4"
-                )
+                if current_html or current_css or current_js:
+                    iterative_banner = Div(
+                        "Iterative Mode: Using existing code as context",
+                        cls="bg-blue-900 text-blue-100 p-2 rounded mb-4"
+                    )
+                else:
+                    iterative_banner = Div(
+                        "Iterative Mode: No existing code found, created new content",
+                        cls="bg-blue-900 text-blue-100 p-2 rounded mb-4"
+                    )
             
             # Return with a data URL for the iframe instead of a URL to preview-content
             return [
@@ -1186,6 +1192,7 @@ def routes(rt):
                         const zipButton = document.createElement('button');
                         zipButton.id = 'create-zip-button';
                         zipButton.className = 'action-button bg-gradient-to-r from-blue-500 to-indigo-600';
+                        zipButton.type = 'button'; // Explicitly set button type to prevent form submission
                         zipButton.innerHTML = `
                             <div class="flex items-center justify-center w-full">
                                 <svg viewBox="0 0 24 24" width="20" height="20" class="inline-block">
@@ -1195,27 +1202,45 @@ def routes(rt):
                             </div>
                         `;
                         
-                        // Add HTMX attributes
-                        zipButton.setAttribute('hx-post', '/api/html5/create-zip');
-                        zipButton.setAttribute('hx-target', '#zip-download-container');
-                        zipButton.setAttribute('hx-include', '[id="html-editor"],[id="css-editor"],[id="js-editor"]');
-                        zipButton.setAttribute('hx-swap', 'innerHTML');
+                        // We're now using the direct handler in html5_form.py instead of HTMX attributes
+                        // to avoid conflicts between the two approaches
                         
                         // Add to the dynamic buttons container
                         dynamicButtons.appendChild(zipButton);
                         console.log('ZIP button created');
                     }}
                     
+                    // Ensure the preview container exists
+                    const previewContainer = document.getElementById('preview-container');
+                    if (!previewContainer) {{
+                        console.error('Preview container not found');
+                        // Try to create one if it doesn't exist
+                        const workspace = document.querySelector('.workspace-container');
+                        if (workspace) {{
+                            const newPreviewContainer = document.createElement('div');
+                            newPreviewContainer.id = 'preview-container';
+                            newPreviewContainer.className = 'preview-panel';
+                            workspace.appendChild(newPreviewContainer);
+                            console.log('Created new preview container');
+                        }}
+                    }}
+                    
                     // Update the preview directly with the data URL
-                    document.getElementById('preview-container').innerHTML = `
-                        <iframe 
-                            src="data:text/html;base64,{encoded_content}" 
-                            width="100%" height="100%" 
-                            frameborder="0" 
-                            allowfullscreen="true" 
-                            style="background-color: #121212; display: block;">
-                        </iframe>
-                    `;
+                    const finalPreviewContainer = document.getElementById('preview-container');
+                    if (finalPreviewContainer) {{
+                        finalPreviewContainer.innerHTML = `
+                            <iframe 
+                                src="data:text/html;base64,{encoded_content}" 
+                                width="100%" height="100%" 
+                                frameborder="0" 
+                                allowfullscreen="true" 
+                                style="background-color: #121212; display: block;">
+                            </iframe>
+                        `;
+                        console.log('Preview updated with iframe');
+                    }} else {{
+                        console.error('Could not find or create preview container');
+                    }}
                 }})();
                 </script>
                 """)
@@ -1300,44 +1325,76 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             # Check if we have current code to include
             has_current_code = bool(current_html.strip() or current_css.strip() or current_js.strip())
             
-            system_prompt += """
-            
-            ITERATIVE MODE INSTRUCTIONS:
-            - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
-            - Maintain the same overall structure while making the improvements requested in the user's instructions.
-            - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code.
-            - Return the complete improved code with all three components properly wrapped.
-            - Provide comments in the code to explain the changes you have made
-            - Your response should only contain the modified code, with no other text or comments.
-            """
-            
-            # Add the current code to the prompt for iterative editing
             if has_current_code:
+                system_prompt += """
+                
+                ITERATIVE MODE INSTRUCTIONS:
+                - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
+                - Maintain the same overall structure while making the improvements requested in the user's instructions.
+                - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code.
+                - Return the complete improved code with all three components properly wrapped.
+                - Provide comments in the code to explain the changes you have made
+                - Your response should only contain the modified code, with no other text or comments.
+                """
+                
+                # Add the current code to the prompt for iterative editing
                 user_prompt = f"""
-{prompt}
+    {prompt}
 
-Here is the existing HTML code:
-```html
-{current_html}
-```
+    Here is the existing HTML code:
+    ```html
+    {current_html}
+    ```
 
-Here is the existing CSS code:
-```css
-{current_css}
-```
+    Here is the existing CSS code:
+    ```css
+    {current_css}
+    ```
 
-Here is the existing JavaScript code:
-```javascript
-{current_js}
-```
+    Here is the existing JavaScript code:
+    ```javascript
+    {current_js}
+    ```
 
-Please modify the code according to my instructions while maintaining the overall structure and functionality.
-"""
+    Please modify the code according to my instructions while maintaining the overall structure and functionality.
+    """
                 print(f"Added current code to prompt in iterative mode - HTML: {len(current_html)} chars, CSS: {len(current_css)} chars, JS: {len(current_js)} chars")
             else:
-                print("Iterative mode enabled but no current code found to include")
+                # When in iterative mode but no existing code, treat it as new content creation
+                print("Iterative mode enabled but no current code found - treating as new content creation")
+                system_prompt += """
+                
+                NEW CONTENT CREATION INSTRUCTIONS (Iterative Mode with no existing code):
+                Important:
+                - Use the provided reference images as inspiration or as elements to reference in your code.
+                - The images are provided as references only and should not be treated as the main objects of the interactive content.
+                - Your code should work without requiring these exact images to be available.
+                - Always return the complete code, with no omissions.
+                - Provide comments in the code on what the code is doing and how it works.
+                - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
+                - The code should be self-contained and not require any external files or resources.
+                - The CSS code should have the following tags:
+                ```css
+                /*
+                with <style> tags
+                */
+                ```
+                - The JavaScript code should have the following tags:
+                ```javascript
+                /*
+                with <script> tags
+                */
+                ```
+                - The HTML code should have the following tags:
+                ```html
+                /*
+                with <body> tags
+                */
+                ``` 
+                """
         else:
             system_prompt += """
+            
             NEW CONTENT CREATION INSTRUCTIONS:
             Important:
             - Use the provided reference images as inspiration or as elements to reference in your code.

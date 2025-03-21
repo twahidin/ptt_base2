@@ -481,7 +481,8 @@ def create_html5_form(api_key=None):
                                 id="iterative-toggle",
                                 name="iterative-toggle",
                                 cls="sr-only peer",
-                                checked=True
+                                checked=True,
+                                value="on"  # Added value attribute to ensure proper form submission
                             ),
                             Div(
                                 cls="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600",
@@ -493,7 +494,7 @@ def create_html5_form(api_key=None):
                     ),
                     P("When enabled, existing code will be included in your next prompt for refinement", 
                     cls="text-xs text-gray-400 mt-1 ml-14"),
-                    cls="flex flex-col mb-4"
+                    cls="flex flex-col mb-4 iterative-container" # Added iterative-container class for styling
                 ),
                 
                 
@@ -633,6 +634,10 @@ def create_html5_form(api_key=None):
                                 
                                 // Add direct click handler
                                 zipButton.addEventListener('click', function(e) {
+                                    // Prevent default behavior to stop form submission
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    
                                     console.log("ZIP button clicked directly");
                                     
                                     // Get the download container
@@ -702,6 +707,9 @@ def create_html5_form(api_key=None):
                                             });
                                         }
                                     });
+                                    
+                                    // Return false to be extra sure we're preventing default behavior
+                                    return false;
                                 });
                                 
                                 // Mark button as handled
@@ -751,6 +759,14 @@ def create_html5_form(api_key=None):
                 // Initialize TinyMCE
                 document.addEventListener('DOMContentLoaded', function() {
                     initRichTextEditor();
+                    
+                    // Ensure iterative mode is on by default
+                    const iterativeToggle = document.getElementById('iterative-toggle');
+                    if (iterativeToggle) {
+                        iterativeToggle.checked = true;
+                        updateIterativeBadge();
+                        console.log('Iterative mode initialized to ON by default');
+                    }
                 });
 
                 function initRichTextEditor() {
@@ -926,6 +942,7 @@ def create_html5_form(api_key=None):
                                 </div>
                             </div>
                         `;
+                        downloadContainer.classList.remove('hidden');
                     }
                     
                     // Get content from each editor
@@ -933,13 +950,26 @@ def create_html5_form(api_key=None):
                     const cssContent = document.getElementById('css-editor')?.value || '';
                     const jsContent = document.getElementById('js-editor')?.value || '';
                     
+                    // Check for empty content
+                    if (!htmlContent && !cssContent && !jsContent) {
+                        if (downloadContainer) {
+                            downloadContainer.innerHTML = `
+                                <div class="bg-gray-800 p-4 rounded border border-amber-500">
+                                    <h4 class="text-lg font-bold text-amber-400 mb-2">No Content Found</h4>
+                                    <p>Please add some HTML, CSS, or JavaScript content first.</p>
+                                </div>
+                            `;
+                        }
+                        return;
+                    }
+                    
                     // Create form data
                     const formData = new FormData();
                     formData.append('html-editor', htmlContent);
                     formData.append('css-editor', cssContent);
                     formData.append('js-editor', jsContent);
                     
-                    // Use fetch API
+                    // Use fetch API with proper error handling
                     fetch('/api/html5/create-zip', {
                         method: 'POST',
                         body: formData
@@ -972,11 +1002,20 @@ def create_html5_form(api_key=None):
                                 <div class="bg-gray-800 p-4 rounded border border-red-500">
                                     <h4 class="text-lg font-bold text-red-500 mb-2">Error Creating ZIP</h4>
                                     <p class="mb-2">Error: ${error.message}</p>
-                                    <button onclick="createZipPackage()" class="px-3 py-1 bg-blue-600 text-white rounded text-sm">
+                                    <button class="px-3 py-1 bg-blue-600 text-white rounded text-sm try-again-btn">
                                         Try Again
                                     </button>
                                 </div>
                             `;
+                            // Add event listener to the try again button
+                            const tryAgainBtn = downloadContainer.querySelector('.try-again-btn');
+                            if (tryAgainBtn) {
+                                tryAgainBtn.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    createZipPackage();
+                                    return false;
+                                });
+                            }
                         }
                     });
                 }
@@ -1179,12 +1218,16 @@ def create_html5_form(api_key=None):
                         if (zipButton) {
                             console.log("Adding direct click handler to ZIP button");
                             zipButton.addEventListener('click', function(e) {
+                                // Always prevent default to stop form submission
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
                                 console.log("ZIP button clicked via direct handler");
-                                // If the button already has HTMX, let it work, but add backup
-                                if (!zipButton.hasAttribute('hx-post')) {
-                                    e.preventDefault();
-                                    createZipPackage();
-                                }
+                                // Always use our direct handler
+                                createZipPackage();
+                                
+                                // Return false to be extra sure
+                                return false;
                             });
                         }
                     }, 2000); // Wait 2 seconds for the button to be available
