@@ -1332,6 +1332,9 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
                 - Maintain the same overall structure while making the improvements requested in the user's instructions.
                 - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code.
+                - Use Canvas API - Allows for drawing 2D graphics using JavaScript
+                - Use SVG (Scalable Vector Graphics) - XML-based markup for creating vector graphics
+                - Use CSS3 - For styling and basic animations
                 - You must generate javascript code and must obey the following rules:
                     - The javascript code must be self-contained and not require any external files or resources.
                     - The javascript code must be able to run in the browser.
@@ -1378,6 +1381,9 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 - Always return the complete code, with no omissions.
                 - Provide comments in the code on what the code is doing and how it works.
                 - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
+                - Use Canvas API - Allows for drawing 2D graphics using JavaScript
+                - Use SVG (Scalable Vector Graphics) - XML-based markup for creating vector graphics
+                - Use CSS3 - For styling and basic animations
                 - The code should be self-contained and not require any external files or resources.
                 - You must generate javascript code and must obey the following rules:
                     - The javascript code must be self-contained and not require any external files or resources.
@@ -1415,6 +1421,9 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             - Always return the complete code, with no omissions.
             - Provide comments in the code on what the code is doing and how it works.
             - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
+            - Use Canvas API - Allows for drawing 2D graphics using JavaScript
+            - Use SVG (Scalable Vector Graphics) - XML-based markup for creating vector graphics
+            - Use CSS3 - For styling and basic animations
             - The code should be self-contained and not require any external files or resources.
             - You must generate javascript code and must obey the following rules:
                 - The javascript code must be self-contained and not require any external files or resources.
