@@ -1375,21 +1375,15 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             - You must generate JavaScript for every interactive content to enable to run the simulation or game.
             - The CSS code should have the following tags:
             ```css
-            /*
             <style>
-            */
             ```
             - The JavaScript code should have the following tags:
             ```javascript
-            /*
             <script>
-            */
             ```
             - The HTML code should have the following tags:
             ```html
-            /*
             <body>
-            */
             ``` 
             """             
         else:
@@ -1405,21 +1399,15 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             - You must generate JavaScript for every interactive content to enable to run the simulation or game.
             - The CSS code should have the following tags:
             ```css
-            /*
             <style>
-            */
             ```
             - The JavaScript code should have the following tags:
             ```javascript
-            /*
             <script>
-            */
             ```
             - The HTML code should have the following tags:
             ```html
-            /*
             <body>
-            */
             ``` 
             """
         print(f"System prompt: {system_prompt}")
