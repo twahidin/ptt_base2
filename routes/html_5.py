@@ -1310,10 +1310,10 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
         
         # System prompt design with reference to images
         system_prompt = """
-        You are a web developer specialized in HTML5 game and interactive content creation.
+        You are a web developer specialized in HTML5 content creation.
         
         You have to complete one of the following tasks:
-        1. Create a new interactive content based on the user's prompt that produces HTML, CSS, and JavaScript code.
+        1. Create a new HTML5 interactive content based on the user's prompt.
         2. Modify existing HTML, CSS, and JavaScript code that the user has provided, based on the user's instructions.
         """
         
@@ -1332,7 +1332,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
                 - Maintain the same overall structure while making the improvements requested in the user's instructions.
                 - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code.
-                - You must generate JavaScript for every interactive content.
+                - You must return the original or improved JavaScript to enable the interactive content to run the simulation or game.
                 - Return the complete improved code with all three components properly wrapped.
                 - Provide comments in the code to explain the changes you have made
                 - Your response should only contain the modified code, with no other text or comments.
@@ -1365,35 +1365,33 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 print("Iterative mode enabled but no current code found - treating as new content creation")
                 system_prompt += """
                 
-                NEW CONTENT CREATION INSTRUCTIONS (Iterative Mode with no existing code):
-                Important:
-                - Use the provided reference images as inspiration or as elements to reference in your code.
-                - The images are provided as references only and should not be treated as the main objects of the interactive content.
-                - Your code should work without requiring these exact images to be available.
-                - Always return the complete code, with no omissions.
-                - Provide comments in the code on what the code is doing and how it works.
-                - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
-                - The code should be self-contained and not require any external files or resources.
-                - You must generate JavaScript for every interactive content.
-                - The CSS code should have the following tags:
-                ```css
-                /*
-                with <style> tags
-                */
-                ```
-                - The JavaScript code should have the following tags:
-                ```javascript
-                /*
-                with <script> tags
-                */
-                ```
-                - The HTML code should have the following tags:
-                ```html
-                /*
-                with <body> tags
-                */
-                ``` 
-                """
+            NEW CONTENT CREATION INSTRUCTIONS:
+            Important:
+            - Use the provided reference images as inspiration or as elements to reference in your code.
+            - The images are provided as references only and should not be treated as the main objects of the interactive content.
+            - Your code should work without requiring these exact images to be available.
+            - Provide comments in the code on what the code is doing and how it works.
+            - You must generate three separate components (HTML, CSS, JavaScript), each properly wrapped.
+            - You must generate JavaScript for every interactive content to enable to run the simulation or game.
+            - The CSS code should have the following tags:
+            ```css
+            /*
+            <style>
+            */
+            ```
+            - The JavaScript code should have the following tags:
+            ```javascript
+            /*
+            <script>
+            */
+            ```
+            - The HTML code should have the following tags:
+            ```html
+            /*
+            <body>
+            */
+            ``` 
+            """             
         else:
             system_prompt += """
             
@@ -1402,26 +1400,25 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             - Use the provided reference images as inspiration or as elements to reference in your code.
             - The images are provided as references only and should not be treated as the main objects of the interactive content.
             - Your code should work without requiring these exact images to be available.
-            - Always return the complete code, with no omissions.
             - Provide comments in the code on what the code is doing and how it works.
-            - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
-            - You must generate JavaScript for every interactive content.
+            - You must generate three separate components (HTML, CSS, JavaScript), each properly wrapped.
+            - You must generate JavaScript for every interactive content to enable to run the simulation or game.
             - The CSS code should have the following tags:
             ```css
             /*
-            with <style> tags
+            <style>
             */
             ```
             - The JavaScript code should have the following tags:
             ```javascript
             /*
-            with <script> tags
+            <script>
             */
             ```
             - The HTML code should have the following tags:
             ```html
             /*
-            with <body> tags
+            <body>
             */
             ``` 
             """
