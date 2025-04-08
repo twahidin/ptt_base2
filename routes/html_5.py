@@ -1332,15 +1332,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
                 - Maintain the same overall structure while making the improvements requested in the user's instructions.
                 - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code.
-                - Use Canvas API - Allows for drawing 2D graphics using JavaScript
-                - Use SVG (Scalable Vector Graphics) - XML-based markup for creating vector graphics
-                - Use CSS3 - For styling and basic animations
-                - You must generate javascript code and must obey the following rules:
-                    - The javascript code must be self-contained and not require any external files or resources.
-                    - The javascript code must be able to run in the browser.
-                    - The javascript code must creates the interactions for the interactive content based on the html and css code.
-                    - The javascript code must be able to access the html and css code.
-                    - The javascript code must be able to access the user's instructions.
+                - You must generate JavaScript for every interactive content.
                 - Return the complete improved code with all three components properly wrapped.
                 - Provide comments in the code to explain the changes you have made
                 - Your response should only contain the modified code, with no other text or comments.
@@ -1381,16 +1373,8 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 - Always return the complete code, with no omissions.
                 - Provide comments in the code on what the code is doing and how it works.
                 - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
-                - Use Canvas API - Allows for drawing 2D graphics using JavaScript
-                - Use SVG (Scalable Vector Graphics) - XML-based markup for creating vector graphics
-                - Use CSS3 - For styling and basic animations
                 - The code should be self-contained and not require any external files or resources.
-                - You must generate javascript code and must obey the following rules:
-                    - The javascript code must be self-contained and not require any external files or resources.
-                    - The javascript code must be able to run in the browser.
-                    - The javascript code must creates the interactions for the interactive content based on the html and css code.
-                    - The javascript code must be able to access the html and css code.
-                    - The javascript code must be able to access the user's instructions.
+                - You must generate JavaScript for every interactive content.
                 - The CSS code should have the following tags:
                 ```css
                 /*
@@ -1421,16 +1405,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             - Always return the complete code, with no omissions.
             - Provide comments in the code on what the code is doing and how it works.
             - Your code has three separate components (HTML, CSS, JavaScript), each properly wrapped.
-            - Use Canvas API - Allows for drawing 2D graphics using JavaScript
-            - Use SVG (Scalable Vector Graphics) - XML-based markup for creating vector graphics
-            - Use CSS3 - For styling and basic animations
-            - The code should be self-contained and not require any external files or resources.
-            - You must generate javascript code and must obey the following rules:
-                - The javascript code must be self-contained and not require any external files or resources.
-                - The javascript code must be able to run in the browser.
-                - The javascript code must creates the interactions for the interactive content based on the html and css code.
-                - The javascript code must be able to access the html and css code.
-                - The javascript code must be able to access the user's instructions.
+            - You must generate JavaScript for every interactive content.
             - The CSS code should have the following tags:
             ```css
             /*
