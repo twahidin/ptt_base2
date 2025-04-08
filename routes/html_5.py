@@ -42,53 +42,141 @@ def extract_components(code):
         code_preview = f"{code[:100]}...{code[-100:]}" if len(code) > 200 else code
         print(f"Extracting components from code: {len(code)} chars. Preview: {code_preview}")
         
+        # Pre-process code to handle section headers
+        # This helps with AI responses that include markdown headers like "## HTML", "## CSS", "## JavaScript"
+        processed_code = code
+        
+        # Look for section patterns and add appropriate tags if missing
+        html_section = re.search(r'## HTML\s*(```(?:html)?\s*(.*?)\s*```)', processed_code, re.DOTALL)
+        if html_section and '<body>' not in html_section.group(1):
+            # If we find an HTML section without body tags, wrap it
+            html_content = html_section.group(2).strip()
+            wrapped_html = f"<body>\n{html_content}\n</body>"
+            processed_code = processed_code.replace(html_section.group(1), f"```html\n{wrapped_html}\n```")
+            print("Pre-processed HTML section to add body tags")
+            
+        css_section = re.search(r'## CSS\s*(```(?:css)?\s*(.*?)\s*```)', processed_code, re.DOTALL)
+        if css_section and '<style>' not in css_section.group(1):
+            # If we find a CSS section without style tags, wrap it
+            css_content = css_section.group(2).strip()
+            wrapped_css = f"<style>\n{css_content}\n</style>"
+            processed_code = processed_code.replace(css_section.group(1), f"```css\n{wrapped_css}\n```")
+            print("Pre-processed CSS section to add style tags")
+            
+        js_section = re.search(r'## JavaScript\s*(```(?:javascript|js)?\s*(.*?)\s*```)', processed_code, re.DOTALL)
+        if js_section and '<script>' not in js_section.group(1):
+            # If we find a JavaScript section without script tags, wrap it
+            js_content = js_section.group(2).strip()
+            wrapped_js = f"<script>\n{js_content}\n</script>"
+            processed_code = processed_code.replace(js_section.group(1), f"```javascript\n{wrapped_js}\n```")
+            print("Pre-processed JavaScript section to add script tags")
+        
         # Split the code into components
         html = ""
         css = ""
         js = ""
         
         # Primary extraction method: look for proper HTML tags
-        html_match = re.search(r'<body>(.*?)</body>', code, re.DOTALL)
+        html_match = re.search(r'<body>(.*?)</body>', processed_code, re.DOTALL)
         if html_match:
             html = html_match.group(1).strip()
             print(f"Extracted HTML using <body> tags: {len(html)} chars")
         
-        css_match = re.search(r'<style>(.*?)</style>', code, re.DOTALL)
+        css_match = re.search(r'<style>(.*?)</style>', processed_code, re.DOTALL)
         if css_match:
             css = css_match.group(1).strip()
             print(f"Extracted CSS using <style> tags: {len(css)} chars")
         
-        js_match = re.search(r'<script>(.*?)</script>', code, re.DOTALL)
+        # Improved script tag extraction - more permissive with whitespace and attributes
+        js_match = re.search(r'<script[^>]*>(.*?)</script>', processed_code, re.DOTALL)
         if js_match:
             js = js_match.group(1).strip()
             print(f"Extracted JS using <script> tags: {len(js)} chars")
+        else:
+            print("No JS found using <script> tags pattern")
+            # For debugging, let's look for script tags in the original code
+            script_tags = re.findall(r'<script[^>]*>.*?</script>', processed_code, re.DOTALL)
+            if script_tags:
+                print(f"Found {len(script_tags)} script tags, but couldn't extract content")
+                for i, tag in enumerate(script_tags[:2]):  # Show first two for debugging
+                    print(f"Script tag {i+1} preview: {tag[:100]}...")
+            else:
+                print("No script tags found in the content")
         
         # Fallback extraction: look for code blocks
         if not html:
-            html_block = re.search(r'```html\s*(.*?)\s*```', code, re.DOTALL)
+            html_block = re.search(r'```html\s*(.*?)\s*```', processed_code, re.DOTALL)
             if html_block:
                 html = html_block.group(1).strip()
                 print(f"Extracted HTML from code block: {len(html)} chars")
         
         if not css:
-            css_block = re.search(r'```css\s*(.*?)\s*```', code, re.DOTALL)
+            css_block = re.search(r'```css\s*(.*?)\s*```', processed_code, re.DOTALL)
             if css_block:
                 css = css_block.group(1).strip()
                 print(f"Extracted CSS from code block: {len(css)} chars")
         
         if not js:
-            js_block = re.search(r'```javascript\s*(.*?)\s*```', code, re.DOTALL) or re.search(r'```js\s*(.*?)\s*```', code, re.DOTALL)
+            # Try multiple JavaScript code block patterns
+            js_block = re.search(r'```javascript\s*(.*?)\s*```', processed_code, re.DOTALL) or re.search(r'```js\s*(.*?)\s*```', processed_code, re.DOTALL)
             if js_block:
                 js = js_block.group(1).strip()
                 print(f"Extracted JS from code block: {len(js)} chars")
+        
+        # Additional fallback for JavaScript extraction
+        if not js:
+            # Look for JavaScript without script tags in code blocks
+            js_section = re.search(r'## JavaScript\s*```(?:javascript|js)?\s*(.*?)\s*```', processed_code, re.DOTALL)
+            if js_section:
+                js = js_section.group(1).strip()
+                print(f"Extracted JS from markdown section: {len(js)} chars")
+        
+        # Last resort: Look for JavaScript patterns without any tags
+        if not js:
+            # Look for code that contains common JS patterns
+            js_patterns = [
+                r'document\.addEventListener\([\'"]DOMContentLoaded[\'"],\s*function',  # DOMContentLoaded
+                r'function\s+\w+\s*\([^)]*\)\s*\{',  # function declarations
+                r'const\s+\w+\s*=',  # const declarations
+                r'let\s+\w+\s*=',  # let declarations
+                r'var\s+\w+\s*=',  # var declarations
+                r'document\.getElementById\(',  # DOM manipulation
+                r'addEventListener\([\'"]click[\'"]',  # event listeners
+                r'new\s+Chart\(',  # Chart.js initialization
+                r'setInterval\(',  # timers
+                r'fetch\(',  # fetch API
+            ]
+            
+            # Check if the code contains multiple JS patterns
+            js_pattern_count = 0
+            for pattern in js_patterns:
+                if re.search(pattern, processed_code, re.DOTALL):
+                    js_pattern_count += 1
+            
+            # If we find multiple JS patterns, extract what seems to be JS code
+            if js_pattern_count >= 2:
+                # Look for what appears to be a JavaScript block without tags
+                js_block_candidates = re.findall(r'```(?:javascript|js)?\s*(.*?)\s*```', processed_code, re.DOTALL)
+                for candidate in js_block_candidates:
+                    # Skip if it's clearly HTML or CSS
+                    if '<html' in candidate or '<style' in candidate or '<body' in candidate:
+                        continue
+                    
+                    # Count JS patterns in this candidate
+                    candidate_js_count = sum(1 for pattern in js_patterns if re.search(pattern, candidate, re.DOTALL))
+                    
+                    if candidate_js_count >= 2:
+                        js = candidate.strip()
+                        print(f"Extracted JS using pattern matching: {len(js)} chars (matched {candidate_js_count} patterns)")
+                        break
         
         # If still empty, try looser pattern matching for HTML content
         if not html and not css and not js:
             print("No components extracted. Trying alternative extraction methods.")
             # Look for HTML patterns (elements, tags, etc.)
-            if '<div' in code or '<p>' in code or '<h1>' in code:
+            if '<div' in processed_code or '<p>' in processed_code or '<h1>' in processed_code:
                 # Try to extract an HTML chunk
-                html_chunk = re.search(r'(<div.*?>.*?</div>|<h1>.*?</h1>|<p>.*?</p>)', code, re.DOTALL)
+                html_chunk = re.search(r'(<div.*?>.*?</div>|<h1>.*?</h1>|<p>.*?</p>)', processed_code, re.DOTALL)
                 if html_chunk:
                     html = html_chunk.group(1)
                     print(f"Extracted HTML fragment using pattern matching: {len(html)} chars")
@@ -421,7 +509,6 @@ def routes(rt):
             </html>"""
             
             # Encode the content as base64
-            import base64
             encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
             
             return [
@@ -550,7 +637,6 @@ def routes(rt):
             </html>"""
             
             # Encode the content as base64
-            import base64
             encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
             
             # Create an iframe with data URL
@@ -1111,7 +1197,6 @@ def routes(rt):
             </html>"""
             
             # Encode the content as base64
-            import base64
             encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
             
             # Create iterative banner if needed
@@ -1315,6 +1400,10 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
         You have to complete one of the following tasks:
         1. Create a new HTML5 interactive content based on the user's prompt.
         2. Modify existing HTML, CSS, and JavaScript code that the user has provided, based on the user's instructions.
+        
+        **IMPORTANT**: You must use the extract_code_components tool to return your code. Don't format your response as markdown code blocks. Instead, use the tool to provide the HTML, CSS, and JavaScript components separately.
+        
+        **CRITICAL**: JavaScript is REQUIRED for all interactive content. You MUST include JavaScript code in your response, even for simple interactions. Without JavaScript, the HTML5 content will not be interactive.
         """
         
         # Initialize user_prompt with the original prompt
@@ -1337,6 +1426,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 - Return the complete improved code with all three components properly wrapped.
                 - Provide comments in the code to explain the changes you have made
                 - Your response should only contain the modified code, with no other text or comments.
+                - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
 
                 Here is the existing HTML code:
                 ```html
@@ -1370,24 +1460,14 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             - The images are provided as references only and should not be treated as the main objects of the interactive content.
             - Your code should work without requiring these exact images to be available.
             - Provide comments in the code on what the code is doing and how it works.
-            - You must generate three separate components (HTML, CSS, JavaScript), each properly wrapped.
+            - You must generate three separate components (HTML, CSS, JavaScript), each properly formatted.
             - You must generate JavaScript for every interactive content to enable to run the simulation or game.
-            - The CSS code should have the following tags:
-            ```css
-            <style>
-            ```
-            - The JavaScript code should have the following tags:
-            ```javascript
-            <script>
-            ```
-            - The HTML code should have the following tags:
-            ```html
-            <body>
-            ``` 
+            - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
+
             User request and instructions:
             {prompt}
             
-            """             
+            """
         else:
             system_prompt += f"""
             
@@ -1399,24 +1479,12 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             - The images are provided as references only and should not be treated as the main objects of the interactive content.
             - Your code should work without requiring these exact images to be available.
             - Provide comments in the code on what the code is doing and how it works.
-            - You must generate three separate components (HTML, CSS, JavaScript), each properly wrapped.
+            - You must generate three separate components (HTML, CSS, JavaScript), each properly formatted.
             - You must generate JavaScript for every interactive content to enable to run the simulation or game.
-            - The CSS code should have the following tags:
-            ```css
-            <style>
-            ```
-            - The JavaScript code should have the following tags:
-            ```javascript
-            <script>
-            ```
-            - The HTML code should have the following tags:
-            ```html
-            <body>
-            ``` 
+            - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
+
             User request and instructions:
             {prompt}
-            
-            
             
             """
         print(f"System prompt: {system_prompt}")
@@ -1468,8 +1536,37 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 # Make the actual API call
                 response = client.messages.create(
                     model=model,
-                    max_tokens=4096,
-                    temperature=0.2,
+                        max_tokens=8192,
+                        # thinking={
+                        #     "type": "enabled",
+                        #     "budget_tokens":16000
+                        # },# Use a more reasonable token limit
+                    temperature=0.6,
+                    tools=[
+                        {
+                            "name": "extract_code_components",
+                            "description": "Extract HTML, CSS, and JavaScript components from the generated code. All three components MUST be included for a complete interactive HTML5 experience.",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "html": {
+                                        "type": "string",
+                                        "description": "HTML content without the body tags"
+                                    },
+                                    "css": {
+                                        "type": "string",
+                                        "description": "CSS content without the style tags"
+                                    },
+                                    "javascript": {
+                                        "type": "string",
+                                        "description": "JavaScript content without the script tags. This is REQUIRED for interactive content."
+                                    }
+                                },
+                                "required": ["html", "css", "javascript"]
+                            }
+                        }
+                    ],
+                    tool_choice={"type": "tool", "name": "extract_code_components"},
                     messages=[
                         {
                             "role": "user",
@@ -1480,30 +1577,99 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 
                 if response:
                     print(f"Received response from Claude. Type: {type(response)}")
-                    code = response.content[0].text.strip()
-                    print(f"Response content length: {len(code)} chars")
                     
-                    # Record token usage
-                    completion_tokens = response.usage.output_tokens
-                    total_tokens = prompt_tokens + completion_tokens
+                    # Check if tool use was returned
+                    if hasattr(response, 'content') and len(response.content) > 0:
+                        tool_use_found = False
+                        text_content = ""
+                        
+                        # First pass: look for tool use
+                        for content in response.content:
+                            if content.type == 'tool_use':
+                                tool_use_found = True
+                                tool_name = content.name
+                                tool_input = content.input
+                                
+                                # Print the raw JSON for debugging
+                                import json
+                                print(f"TOOL USE JSON DATA:")
+                                print(json.dumps(tool_input, indent=2))
+                                
+                                if tool_name == 'extract_code_components':
+                                    html = tool_input.get('html', '')
+                                    css = tool_input.get('css', '')
+                                    js = tool_input.get('javascript', '')
+                                    
+                                    print(f"Successfully extracted components using tool - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                                    
+                                    # Print JS for debugging
+                                    print(f"JavaScript content (first 500 chars):")
+                                    print(js[:500] + "..." if len(js) > 500 else js)
+                                    
+                                    # If JavaScript is missing or empty, collect text content for later extraction
+                                    if not js:
+                                        print("WARNING: JavaScript missing from tool use, will try to extract from text content")
+                            elif content.type == 'text':
+                                text_content += content.text + "\n"
+                        
+                        # If we found tool use but are missing JavaScript, try to extract from text content
+                        if tool_use_found and not js and text_content:
+                            print("Attempting to extract JavaScript from text content")
+                            import re
+                            js_match = re.search(r'```(?:javascript|js)\s*(.*?)\s*```', text_content, re.DOTALL)
+                            if js_match:
+                                js = js_match.group(1).strip()
+                                print(f"Extracted JavaScript from text content - {len(js)} chars")
+                        
+                        # If we have valid HTML, CSS and JS from tool use, return the components
+                        if tool_use_found and html and (css or True) and js:  # CSS is optional
+                            # Record token usage
+                            completion_tokens = response.usage.output_tokens
+                            total_tokens = prompt_tokens + completion_tokens
+                            
+                            # Save token usage to database
+                            token_count.record_token_usage(
+                                model=model,
+                                prompt=prompt[:500] if prompt else None,
+                                prompt_tokens=prompt_tokens,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                user_id=user_id,
+                                session_id=session_id
+                            )
+                            
+                            return html, css, js
+                        
+                        # If we have tool use but missing components, fall through to text-based extraction
+                        if tool_use_found and text_content:
+                            print("Tool use found but components incomplete. Falling back to text extraction.")
+                            code = text_content
+                        else:
+                            # Fallback to traditional extraction if no tool use or missing components
+                            code = response.content[0].text.strip() if hasattr(response.content[0], 'text') else ""
+                    else:
+                        # No content found in response
+                        code = response.content[0].text.strip() if hasattr(response.content[0], 'text') else ""
                     
-                    # Save token usage to database
-                    token_count.record_token_usage(
-                        model=model,
-                        prompt=prompt[:500] if prompt else None,
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens,
-                        total_tokens=total_tokens,
-                        user_id=user_id,
-                        session_id=session_id
-                    )
+                    print(f"Falling back to regex extraction. Response content length: {len(code)} chars")
                     
-                    # Extract components
+                    # Extract components using regex as fallback
                     html, css, js = extract_components(code)
                     
+                    # If JavaScript is missing or empty, try to obtain it from elsewhere in the response
+                    if not js:
+                        print("WARNING: JavaScript missing from Claude response, attempting additional extraction")
+                        # Try to extract JavaScript using more focused regex
+                        import re
+                        js_match = re.search(r'```(?:javascript|js)\s*(.*?)\s*```', code, re.DOTALL)
+                        if js_match:
+                            js = js_match.group(1).strip()
+                            print(f"Extracted JavaScript with targeted regex - {len(js)} chars")
+                    
+             
                     # Verify we have content
                     if not (html or css or js):
-                        print("WARNING: No content extracted from Claude response. Using original content.")
+                        print("WARNING: No content extracted from Claude tool use. Using original content.")
                         # Return the original content if we couldn't extract anything
                         if is_iterative and current_html and current_css and current_js:
                             return current_html, current_css, current_js
@@ -1583,6 +1749,17 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                     # Extract components
                     html, css, js = extract_components(code)
                     
+                    # If JavaScript is missing or empty, try to obtain it from elsewhere in the response
+                    if not js:
+                        print("WARNING: JavaScript missing from OpenAI response, attempting additional extraction")
+                        # Try to extract JavaScript using more focused regex
+                        import re
+                        js_match = re.search(r'```(?:javascript|js)\s*(.*?)\s*```', code, re.DOTALL)
+                        if js_match:
+                            js = js_match.group(1).strip()
+                            print(f"Extracted JavaScript with targeted regex - {len(js)} chars")
+                    
+
                     # Verify we have content
                     if not (html or css or js):
                         print("WARNING: No content extracted from OpenAI response. Using original content.")
