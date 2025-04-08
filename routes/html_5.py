@@ -1326,7 +1326,8 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             has_current_code = bool(current_html.strip() or current_css.strip() or current_js.strip())
             
             if has_current_code:
-                system_prompt += """
+                system_prompt += f"""
+
                 
                 ITERATIVE MODE INSTRUCTIONS:
                 - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
@@ -1336,58 +1337,32 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 - Return the complete improved code with all three components properly wrapped.
                 - Provide comments in the code to explain the changes you have made
                 - Your response should only contain the modified code, with no other text or comments.
-                """
-                
-                # Add the current code to the prompt for iterative editing
-                user_prompt = f"""
-    {prompt}
 
-    Here is the existing HTML code:
-    ```html
-    {current_html}
-    ```
+                Here is the existing HTML code:
+                ```html
+                {current_html}
+                ```
 
-    Here is the existing CSS code:
-    ```css
-    {current_css}
-    ```
+                Here is the existing CSS code:
+                ```css
+                {current_css}
+                ```
 
-    Here is the existing JavaScript code:
-    ```javascript
-    {current_js}
-    ```
+                Here is the existing JavaScript code:
+                ```javascript
+                {current_js}
+                ```
 
-    Please modify the code according to my instructions while maintaining the overall structure and functionality.
-    """
+                Please modify the code according to my instructions while maintaining the overall structure and functionality.
+                User request and instructions:
+                {prompt}
+                """         
+
                 print(f"Added current code to prompt in iterative mode - HTML: {len(current_html)} chars, CSS: {len(current_css)} chars, JS: {len(current_js)} chars")
             else:
                 # When in iterative mode but no existing code, treat it as new content creation
                 print("Iterative mode enabled but no current code found - treating as new content creation")
-                system_prompt += """
-                
-            NEW CONTENT CREATION INSTRUCTIONS:
-            Important:
-            - Use the provided reference images as inspiration or as elements to reference in your code.
-            - The images are provided as references only and should not be treated as the main objects of the interactive content.
-            - Your code should work without requiring these exact images to be available.
-            - Provide comments in the code on what the code is doing and how it works.
-            - You must generate three separate components (HTML, CSS, JavaScript), each properly wrapped.
-            - You must generate JavaScript for every interactive content to enable to run the simulation or game.
-            - The CSS code should have the following tags:
-            ```css
-            <style>
-            ```
-            - The JavaScript code should have the following tags:
-            ```javascript
-            <script>
-            ```
-            - The HTML code should have the following tags:
-            ```html
-            <body>
-            ``` 
-            """             
-        else:
-            system_prompt += """
+                system_prompt += f"""
             
             NEW CONTENT CREATION INSTRUCTIONS:
             Important:
@@ -1409,6 +1384,40 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             ```html
             <body>
             ``` 
+            User request and instructions:
+            {prompt}
+            
+            """             
+        else:
+            system_prompt += f"""
+            
+
+            
+            NEW CONTENT CREATION INSTRUCTIONS:
+            Important:
+            - Use the provided reference images as inspiration or as elements to reference in your code.
+            - The images are provided as references only and should not be treated as the main objects of the interactive content.
+            - Your code should work without requiring these exact images to be available.
+            - Provide comments in the code on what the code is doing and how it works.
+            - You must generate three separate components (HTML, CSS, JavaScript), each properly wrapped.
+            - You must generate JavaScript for every interactive content to enable to run the simulation or game.
+            - The CSS code should have the following tags:
+            ```css
+            <style>
+            ```
+            - The JavaScript code should have the following tags:
+            ```javascript
+            <script>
+            ```
+            - The HTML code should have the following tags:
+            ```html
+            <body>
+            ``` 
+            User request and instructions:
+            {prompt}
+            
+            
+            
             """
         print(f"System prompt: {system_prompt}")
         
@@ -1429,7 +1438,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 message_content = [
                     {
                         "type": "text",
-                        "text": f"{system_prompt}\n\n{user_prompt}"
+                        "text": system_prompt
                     }
                 ]
                 
