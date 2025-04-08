@@ -1417,7 +1417,6 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             if has_current_code:
                 system_prompt += f"""
 
-                
                 ITERATIVE MODE INSTRUCTIONS:
                 - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
                 - Maintain the same overall structure while making the improvements requested in the user's instructions.
@@ -1445,48 +1444,40 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
 
                 Please modify the code according to my instructions while maintaining the overall structure and functionality.
                 User request and instructions:
-                {prompt}
                 """         
 
                 print(f"Added current code to prompt in iterative mode - HTML: {len(current_html)} chars, CSS: {len(current_css)} chars, JS: {len(current_js)} chars")
             else:
                 # When in iterative mode but no existing code, treat it as new content creation
                 print("Iterative mode enabled but no current code found - treating as new content creation")
-                system_prompt += f"""
+                system_prompt += """
             
             NEW CONTENT CREATION INSTRUCTIONS:
             Important:
-            - Use the provided reference images as inspiration or as elements to reference in your code.
-            - The images are provided as references only and should not be treated as the main objects of the interactive content.
-            - Your code should work without requiring these exact images to be available.
+            - Use the provided reference images as inspiration and references.
             - Provide comments in the code on what the code is doing and how it works.
             - You must generate three separate components (HTML, CSS, JavaScript), each properly formatted.
             - You must generate JavaScript for every interactive content to enable to run the simulation or game.
             - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
 
             User request and instructions:
-            {prompt}
-            
             """
         else:
-            system_prompt += f"""
+            system_prompt += """
             
 
             
             NEW CONTENT CREATION INSTRUCTIONS:
             Important:
-            - Use the provided reference images as inspiration or as elements to reference in your code.
-            - The images are provided as references only and should not be treated as the main objects of the interactive content.
-            - Your code should work without requiring these exact images to be available.
+            - Use the provided reference images as inspiration and references.
             - Provide comments in the code on what the code is doing and how it works.
             - You must generate three separate components (HTML, CSS, JavaScript), each properly formatted.
             - You must generate JavaScript for every interactive content to enable to run the simulation or game.
             - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
 
             User request and instructions:
-            {prompt}
-            
             """
+            
         print(f"System prompt: {system_prompt}")
         
         # Get user ID from session for token tracking
@@ -1506,7 +1497,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 message_content = [
                     {
                         "type": "text",
-                        "text": system_prompt
+                        "text": system_prompt + user_prompt
                     }
                 ]
                 
@@ -1541,7 +1532,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                         #     "type": "enabled",
                         #     "budget_tokens":16000
                         # },# Use a more reasonable token limit
-                    temperature=0.6,
+                    temperature=0.4,
                     tools=[
                         {
                             "name": "extract_code_components",
@@ -1718,17 +1709,95 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                     "content": user_message_content
                 })
                 
-                # Make the API call
+                # Define tools for OpenAI
+                tools = [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": "extract_code_components",
+                            "description": "Extract HTML, CSS, and JavaScript components from the generated code. All three components MUST be included for a complete interactive HTML5 experience.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "html": {
+                                        "type": "string",
+                                        "description": "HTML content without the body tags"
+                                    },
+                                    "css": {
+                                        "type": "string",
+                                        "description": "CSS content without the style tags"
+                                    },
+                                    "javascript": {
+                                        "type": "string",
+                                        "description": "JavaScript content without the script tags. This is REQUIRED for interactive content."
+                                    }
+                                },
+                                "required": ["html", "css", "javascript"]
+                            }
+                        }
+                    }
+                ]
+                
+                # Make the API call with function tools
                 response = client.chat.completions.create(
                     model=model,
+                    max_tokens=8192,
                     messages=messages,
-                    temperature=0.2,
+                    temperature=0.4,
+                    tools=tools,
+                    tool_choice={"type": "function", "function": {"name": "extract_code_components"}}
                 )
                 
                 if response:
                     print(f"Received response from OpenAI. Type: {type(response)}")
+                    
+                    # Check if we have tool calls in the response
+                    if response.choices[0].message.tool_calls:
+                        print("Found tool calls in the response")
+                        tool_call = response.choices[0].message.tool_calls[0]
+                        
+                        if tool_call.function.name == 'extract_code_components':
+                            # Parse the function arguments (JSON)
+                            import json
+                            tool_args = json.loads(tool_call.function.arguments)
+                            
+                            # Extract components from the tool call
+                            html = tool_args.get('html', '')
+                            css = tool_args.get('css', '')
+                            js = tool_args.get('javascript', '')
+                            
+                            print(f"Successfully extracted components using tool - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                            
+                            # Record token usage
+                            prompt_tokens = response.usage.prompt_tokens
+                            completion_tokens = response.usage.completion_tokens
+                            total_tokens = response.usage.total_tokens
+                            
+                            # Save token usage to database
+                            token_count.record_token_usage(
+                                model=model,
+                                prompt=prompt[:500] if prompt else None,
+                                prompt_tokens=prompt_tokens,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                user_id=user_id,
+                                session_id=session_id
+                            )
+                            
+                            # If JavaScript is missing or empty, try to extract from regular content
+                            if not js and response.choices[0].message.content:
+                                print("WARNING: JavaScript missing from tool use, trying to extract from message content")
+                                import re
+                                js_match = re.search(r'```(?:javascript|js)\s*(.*?)\s*```', response.choices[0].message.content, re.DOTALL)
+                                if js_match:
+                                    js = js_match.group(1).strip()
+                                    print(f"Extracted JavaScript from message content - {len(js)} chars")
+                            
+                            return html, css, js
+                    
+                    # Fallback to traditional extraction if no tool calls
                     code = response.choices[0].message.content.strip()
-                    print(f"Response content length: {len(code)} chars")
+                    print(f"No tool calls found or extraction failed. Response content length: {len(code)} chars")
                     
                     # Record token usage
                     prompt_tokens = response.usage.prompt_tokens
