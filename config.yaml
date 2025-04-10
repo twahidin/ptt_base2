@@ -1,31 +1,358 @@
 templates:
-  base_template: |
-    You are a helpful assistant. Speak in the first person and friendly.
 
-  recipe_template_1: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 1
+  secondary_science_template: |
 
-  recipe_template_2: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 2
-
-  recipe_template_3: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 3
-
-  recipe_template_4: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 4
-
-  recipe_template_5: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 5
-
-  recipe_template_6: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 6
-  
-  recipe_template_7: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 7
-
-  recipe_template_8: |
-    You are a helpful assistant. Speak in the first person and friendly. Template 8
+    Create a fully interactive and realistic simulation using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The simulation should:
     
+    Based on this topic: { INSERT TOPIC HERE }
+    The simulation should demonstrate the following concepts:
+    - { INSERT CONCEPTS HERE }
+    The Simulation allows the user to interact with the following key variables using a slider:
+    - { INSERT VARIABLES HERE }
+    The simulation must display the following key variables at all times:
+    - { INSERT KEY VARIABLES HERE }
+    The simulation must display the following motion or animation:
+    - { INSERT MOTION OR ANIMATION HERE }
+    The simulation should display the following output/results:
+    - { INSERT OUTPUT HERE, eg. graph, chart, table, etc.}
+
+    - Model a system with realistic physics relevant to the chosen topic.
+    - Include interactive controls such as Play, Pause and Reset.
+    - Provide meaningful visualizations, such as directional vectors, forces, shadows, or any representations that support conceptual understanding.
+    - Use clear labels to help users interpret what they see on screen.
+    
+    User Interface Guidelines:
+    - All control buttons should be placed at the top of the interface, above the main visualization panel.
+    - Layout must maximize the use of screen space, especially vertical space, by:
+      - Hiding page titles, browser margins, and any non-essential UI.
+      - Ensuring content fills the display area cleanly and intuitively.
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without any external libraries, CDNs, or internet access.
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height, with no scrolling required.
+    
+    Focus on scientific accuracy and educational value appropriate for secondary school students. Use proper scientific terminology while keeping explanations accessible.
+
+  primary_science_template: |
+    
+    Create a fully interactive and realistic simulation using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The simulation should:
+    
+    Based on this topic: { INSERT TOPIC HERE }
+    The simulation should demonstrate the following age-appropriate concepts:
+    - { INSERT CONCEPTS HERE }
+    The simulation allows the user to interact with the following simple elements:
+    - { INSERT INTERACTIVE ELEMENTS HERE }
+    The simulation must display the following child-friendly variables:
+    - { INSERT KEY VARIABLES HERE }
+    The simulation must show the following simple animations:
+    - { INSERT ANIMATIONS HERE }
+    The simulation should present the following visual outcomes:
+    - { INSERT VISUAL OUTCOMES HERE }
+    
+    - Model a simplified system with age-appropriate physics relevant to the chosen topic.
+    - Include large, colorful interactive controls such as Play, Pause, and Reset.
+    - Provide engaging visualizations with bright colors and simple representations.
+    - Use clear, simple labels with minimal text to help young users understand what they see.
+    
+    User Interface Guidelines:
+    - All control buttons should be large, colorful, and placed at the top of the interface.
+    - Layout must be simple and intuitive for young users:
+      - Use large, clear visuals with minimal text
+      - Ensure content is engaging and visually appealing
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without any external libraries or internet access.
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height, with no scrolling required.
+    - Support touch interactions for tablets, which are commonly used in primary classrooms.
+    
+    Use straightforward, age-appropriate language with analogies to everyday experiences. Focus on fostering curiosity rather than technical details.
+
+  secondary_math_template: |
+    
+    Create a fully interactive and engaging mathematical manipulative using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The manipulative should:
+    
+    Based on this topic: { INSERT TOPIC HERE }
+    The manipulative should demonstrate the following mathematical concepts:
+    - { INSERT MATHEMATICAL CONCEPTS HERE }
+    The manipulative allows the user to interact with these parameters:
+    - { INSERT INTERACTIVE PARAMETERS HERE }
+    The manipulative must display the following values at all times:
+    - { INSERT KEY VALUES HERE }
+    The manipulative should include these interactive features:
+    - { INSERT INTERACTIVE FEATURES HERE }
+    The manipulative should display the following visualizations:
+    - { INSERT VISUALIZATIONS HERE }
+    
+    - Model mathematical concepts with accurate representations and behavior
+    - Include interactive controls such as sliders, buttons, and direct manipulation of objects
+    - Provide meaningful visualizations that help build intuition for abstract concepts
+    - Use clear labels, grid lines, and annotations to support understanding
+
+    User Interface Guidelines:
+    - Place all control elements (buttons, sliders) in an intuitive location, preferably at the top or side
+    - Layout must maximize visualization space by:
+      - Using a clean, distraction-free design with minimal UI elements
+      - Ensuring the manipulative area fills the display cleanly
+      - Using responsive design to adapt to different screen sizes
+    
+    Interaction Requirements:
+    - Support direct manipulation where possible (drag, resize, rotate objects)
+    - Provide immediate visual feedback to user actions
+    - Include exploration tools that reveal underlying mathematical relationships
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without external libraries or internet access
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height
+    - Support touch interactions for tablets/touchscreens and mouse interactions for desktop
+    
+    Include precise mathematical notation and terminology. Focus on building intuition for abstract concepts through interactive exploration.
+
+  primary_math_template: |
+    
+    Create a fully interactive and engaging mathematical manipulative using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The manipulative should:
+    
+    Based on this topic: { INSERT TOPIC HERE }
+    The manipulative should teach these basic math concepts:
+    - { INSERT BASIC CONCEPTS HERE }
+    The manipulative allows children to interact with:
+    - { INSERT INTERACTIVE ELEMENTS HERE }
+    The manipulative should show these numbers or values:
+    - { INSERT KEY VALUES HERE }
+    The manipulative should include these child-friendly visuals:
+    - { INSERT CHILD-FRIENDLY VISUALS HERE }
+    The manipulative should provide this type of feedback:
+    - { INSERT FEEDBACK TYPE HERE }
+    
+    - Model basic mathematical concepts with simple, concrete representations
+    - Display numbers, shapes, and results in a large, clear, child-friendly format
+    - Include colorful, intuitive controls that are easy for young children to understand
+    - Provide engaging visualizations using familiar objects like blocks, animals, or toys
+    - Use minimal text with clear visual cues and simple labels
+
+    User Interface Guidelines:
+    - Place control elements as large, colorful buttons with visual icons
+    - Layout must be simple and appealing to young users:
+      - Use bright, engaging colors and simple shapes
+      - Make interactive elements obviously clickable/draggable
+      - Ensure plenty of space between interactive elements
+    
+    Interaction Requirements:
+    - Support simple drag-and-drop interactions with large touch targets
+    - Provide immediate, positive feedback with animations or sounds
+    - Keep interactions simple and intuitive for developing motor skills
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without external libraries
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height
+    - Optimize for touch interactions on tablets, which are common in primary classrooms
+    
+    Use simple, concrete visuals like blocks, number lines, and familiar objects. Focus on building number sense and basic operations through playful interaction.
+
+  secondary_games_template: |
+    
+    Create an engaging educational game using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The game should:
+    
+    Based on this topic: { INSERT TOPIC HERE }
+    The game should teach these educational concepts:
+    - { INSERT EDUCATIONAL CONCEPTS HERE }
+    The game includes these gameplay mechanics:
+    - { INSERT GAMEPLAY MECHANICS HERE }
+    The game tracks these player statistics:
+    - { INSERT PLAYER STATISTICS HERE }
+    The game includes these challenge levels:
+    - { INSERT CHALLENGE LEVELS HERE }
+    The game provides these types of feedback:
+    - { INSERT FEEDBACK TYPES HERE }
+    
+    - Incorporate curriculum-relevant content with engaging gameplay mechanics
+    - Include clear scoring systems, challenge progression, and meaningful feedback
+    - Feature intuitive controls and responsive design for smooth gameplay
+    - Balance educational value with engaging gameplay to maintain student interest
+    - Use age-appropriate graphics, themes, and complexity levels
+    
+    User Interface Guidelines:
+    - Place game controls and status indicators in non-intrusive locations
+    - Layout must support immersive gameplay:
+      - Keep UI elements minimal during active gameplay
+      - Ensure the game area fills the display cleanly
+      - Use responsive design that works on various screen sizes
+    
+    Gameplay Requirements:
+    - Include clear instructions, objectives, and feedback mechanisms
+    - Support keyboard/mouse inputs with intuitive controls
+    - Provide progressive difficulty levels to challenge different ability levels
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without external libraries
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height
+    - Support both desktop and touch interactions where possible
+    
+    Design games that require critical thinking, problem-solving, and application of subject knowledge while maintaining engagement.
+
+  primary_games_template: |
+    
+    Create a fun, colorful educational game using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The game should:
+    
+    Based on this topic: { INSERT TOPIC HERE }
+    The game should teach these simple concepts:
+    - { INSERT SIMPLE CONCEPTS HERE }
+    The game includes these fun activities:
+    - { INSERT FUN ACTIVITIES HERE }
+    The game rewards players with:
+    - { INSERT REWARDS HERE }
+    The game features these friendly characters:
+    - { INSERT FRIENDLY CHARACTERS HERE }
+    The game includes these simple controls:
+    - { INSERT SIMPLE CONTROLS HERE }
+    
+    - Focus on basic skills development through simple, enjoyable gameplay
+    - Use bright colors, simple animations, and positive reinforcement
+    - Include very simple rules and controls appropriate for young children
+    - Feature friendly characters or themes that appeal to primary students
+    - Provide consistent positive feedback and celebration of achievements
+    
+    User Interface Guidelines:
+    - Use large, colorful buttons with minimal text and clear visual cues
+    - Layout must be simple and engaging:
+      - Minimize complexity and text instructions
+      - Use large interactive elements with generous spacing
+      - Ensure friendly visual design with appealing characters
+    
+    Gameplay Requirements:
+    - Keep rules extremely simple with gradual introduction of concepts
+    - Provide constant positive feedback through sounds, animations, or characters
+    - Ensure no possibility of failure that might discourage young learners
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without external libraries
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height
+    - Optimize for touch interactions on tablets, which are common in primary classrooms
+    
+    Design simple, encouraging games that build confidence and foundational skills through play.
+
+  general_simulation_template: |
+    
+    Create a fully interactive and realistic simulation using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The simulation should:
+    
+    Based on this topic: { INSERT TOPIC HERE }
+    The simulation should model the following system:
+    - { INSERT SYSTEM MODEL HERE }
+    The simulation allows users to adjust these parameters:
+    - { INSERT ADJUSTABLE PARAMETERS HERE }
+    The simulation displays these key variables in real-time:
+    - { INSERT REAL-TIME VARIABLES HERE }
+    The simulation visualizes these processes or relationships:
+    - { INSERT VISUALIZATIONS HERE }
+    The simulation includes these preset scenarios:
+    - { INSERT PRESET SCENARIOS HERE }
+    
+    - Model a system with accurate underlying mechanics and behaviors
+    - Display key variables and parameters that update in real-time
+    - Include comprehensive controls for adjusting simulation parameters
+    - Provide clear visualizations of processes, relationships, and outcomes
+    - Use appropriate labels, legends, and information panels to explain what's happening
+    
+    User Interface Guidelines:
+    - Organize controls logically in panels that can be minimized if needed
+    - Layout must balance information display with interactive elements:
+      - Provide clean separation between controls and visualization areas
+      - Ensure the simulation area dominates the screen space
+      - Use responsive design principles for different viewing contexts
+    
+    Interaction Requirements:
+    - Support parameter adjustment both during and before simulation runs
+    - Provide data export or snapshot capabilities where appropriate
+    - Include preset scenarios to demonstrate specific principles or situations
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without external libraries
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height
+    - Support both precise mouse interactions and touch controls where possible
+    
+    Build simulations with accurate underlying models that facilitate exploration and discovery.
+
+  data_visualization_template: |
+    
+    Create an interactive data visualization using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The visualization should:
+    
+    Based on this topic/dataset: { INSERT TOPIC/DATASET HERE }
+    The visualization should display the following data types:
+    - { INSERT DATA TYPES HERE }
+    The visualization allows users to filter or sort by:
+    - { INSERT FILTER/SORT OPTIONS HERE }
+    The visualization highlights these key relationships:
+    - { INSERT KEY RELATIONSHIPS HERE }
+    The visualization uses these chart types:
+    - { INSERT CHART TYPES HERE }
+    The visualization provides these interaction methods:
+    - { INSERT INTERACTION METHODS HERE }
+    
+    - Present data clearly with appropriate chart types and visual encodings
+    - Allow filtering, sorting, and exploration of the dataset
+    - Include interactive elements for highlighting relationships and patterns
+    - Provide context and explanations to help interpret the visualization
+    - Use appropriate color schemes, scales, and legends for clarity
+    
+    User Interface Guidelines:
+    - Place data controls and filters in a compact panel adjacent to the visualization
+    - Layout must prioritize the data display:
+      - Maximize the visualization area while keeping controls accessible
+      - Ensure clean, distraction-free presentation of data
+      - Support different screen orientations and sizes
+    
+    Interaction Requirements:
+    - Support hover/touch for detailed information on data points
+    - Provide options for different visualization perspectives
+    - Include export or sharing capabilities where appropriate
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without external libraries
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height
+    - Support both precise mouse interactions and touch gestures
+    
+    Design visualizations that reveal patterns, trends, and relationships within datasets in an intuitive, accessible manner.
+
+  drag_and_drop_template: |
+    
+    Create an interactive drag-and-drop learning activity using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The activity should:
+    
+    Based on this topic: { INSERT TOPIC HERE }
+    The activity teaches these learning objectives:
+    - { INSERT LEARNING OBJECTIVES HERE }
+    The activity includes these draggable elements:
+    - { INSERT DRAGGABLE ELEMENTS HERE }
+    The activity includes these drop zones:
+    - { INSERT DROP ZONES HERE }
+    The activity provides these types of feedback:
+    - { INSERT FEEDBACK TYPES HERE }
+    The activity includes these levels or challenges:
+    - { INSERT LEVELS/CHALLENGES HERE }
+    
+    - Present clear learning objectives through thoughtfully designed drag interactions
+    - Include movable elements that can be sorted, matched, ordered, or placed
+    - Provide immediate feedback on correct and incorrect placements
+    - Use visual cues to indicate draggable items and drop zones
+    - Include reset, hint, and solution options to support learning
+    
+    User Interface Guidelines:
+    - Clearly distinguish between draggable elements and target zones
+    - Layout must support intuitive interaction:
+      - Ensure ample space for drag operations
+      - Use visual cues like shadows or highlights to indicate interaction state
+      - Maintain clean organization of draggable elements
+    
+    Interaction Requirements:
+    - Support smooth drag operations with appropriate physics (snap, glide)
+    - Provide clear success/failure feedback through animation, sound, or color
+    - Include progressive levels or challenges where appropriate
+    
+    Platform and Device Compatibility:
+    - The HTML file must run entirely offline, without external libraries
+    - Ensure it fits well within an iframe environment, using 100% width and 90% height
+    - Optimize for both touch and mouse interactions with appropriate target sizes
+    
+    Design activities for classification, sequencing, mapping, and assembly tasks that build understanding through physical interaction.
+
     
     
     

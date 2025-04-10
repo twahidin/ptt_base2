@@ -19,27 +19,27 @@ else:
     os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
  
  
-#extract the recipe template from the config.yaml file
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
-    #extract the base template      
-    base_template = config['templates']['base_template']
-    #extract the recipe template 1  
-    recipe_template_1 = config['templates']['recipe_template_1']
-    #extract the recipe template 2  
-    recipe_template_2 = config['templates']['recipe_template_2']
-    #extract the recipe template 3  
-    recipe_template_3 = config['templates']['recipe_template_3']
-    #extract the recipe template 4  
-    recipe_template_4 = config['templates']['recipe_template_4']
-    #extract the recipe template 5  
-    recipe_template_5 = config['templates']['recipe_template_5']
-    #extract the recipe template 6  
-    recipe_template_6 = config['templates']['recipe_template_6']
-    #extract the recipe template 7  
-    recipe_template_7 = config['templates']['recipe_template_7']
-    #extract the recipe template 8  
-    recipe_template_8 = config['templates']['recipe_template_8']
+# #extract the recipe template from the config.yaml file
+# with open('config.yaml', 'r') as file:
+#     config = yaml.safe_load(file)
+#     #extract the base template      
+#     base_template = config['templates']['base_template']
+#     #extract the recipe template 1  
+#     recipe_template_1 = config['templates']['recipe_template_1']
+#     #extract the recipe template 2  
+#     recipe_template_2 = config['templates']['recipe_template_2']
+#     #extract the recipe template 3  
+#     recipe_template_3 = config['templates']['recipe_template_3']
+#     #extract the recipe template 4  
+#     recipe_template_4 = config['templates']['recipe_template_4']
+#     #extract the recipe template 5  
+#     recipe_template_5 = config['templates']['recipe_template_5']
+#     #extract the recipe template 6  
+#     recipe_template_6 = config['templates']['recipe_template_6']
+#     #extract the recipe template 7  
+#     recipe_template_7 = config['templates']['recipe_template_7']
+#     #extract the recipe template 8  
+#     recipe_template_8 = config['templates']['recipe_template_8']
     
     
     

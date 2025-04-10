@@ -714,18 +714,20 @@ def routes(rt):
             }
             if (zipButton) zipButton.classList.add('hidden');
             
-            // Reset iterative mode
-            var iterativeToggle = document.getElementById('iterative-toggle');
-            if (iterativeToggle) {
-                iterativeToggle.checked = false;
-                if (typeof updateIterativeBadge === 'function') {
-                    updateIterativeBadge();
+            // Clear HTML5 Prompt text area but preserve iterative mode setting
+            if (typeof tinymce !== 'undefined' && tinymce.get('prompt')) {
+                tinymce.get('prompt').setContent('');
+            } else {
+                // Fallback to regular textarea if TinyMCE isn't initialized
+                var promptTextarea = document.getElementById('prompt');
+                if (promptTextarea) {
+                    promptTextarea.value = '';
                 }
             }
             
-            // Reset prompt to original state if in TinyMCE
-            if (typeof tinymce !== 'undefined' && tinymce.get('prompt')) {
-                tinymce.get('prompt').setContent('');
+            // Refresh any iterative badges (but don't change the toggle state)
+            if (typeof updateIterativeBadge === 'function') {
+                updateIterativeBadge();
             }
         </script>
         """
@@ -889,9 +891,6 @@ def routes(rt):
                 const errorDiv = document.createElement('div');
                 errorDiv.style.color = 'red';
                 errorDiv.style.padding = '10px';
-                errorDiv.style.marginTop = '20px';
-                errorDiv.style.border = '1px solid red';
-                errorDiv.style.backgroundColor = '#ffeeee';
                 errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
                 document.body.appendChild(errorDiv);
             }}
@@ -938,7 +937,9 @@ def routes(rt):
                 <p class="text-sm mb-2">Your HTML5 content has been packaged into a ZIP file ready for SLS.</p>
                 <a href="data:application/zip;base64,{encoded_zip}" 
                 download="{filename}" 
-                class="inline-block bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded flex items-center w-fit">
+                type="application/zip"
+                onclick="setTimeout(() => {{if(confirm('Download not starting? Click OK to try again.')) this.click();}}, 2000)"
+                class="inline-block bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded flex items-center w-fit download-link">
                     <svg viewBox="0 0 24 24" width="20" height="20" class="mr-2">
                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z" fill="currentColor"></path>
                     </svg>
@@ -946,6 +947,12 @@ def routes(rt):
                 </a>
                 <p class="text-xs text-gray-400 mt-2">Upload this ZIP directly to SLS as a media object.</p>
             </div>
+            <script>
+                // Auto-trigger download
+                setTimeout(function() {{
+                    document.querySelector('.download-link').click();
+                }}, 500);
+            </script>
             """)
             
         except Exception as error:
@@ -1081,12 +1088,20 @@ def routes(rt):
             model = form.get('model', 'gpt-4o')
             is_iterative = form.get('iterative-toggle') == 'on'
             
-            # Get reference images
+            # Get reference images - modified to handle prefixed fields
             images = []
+            # First look for generation tab images
             for i in range(5):
-                image_data = form.get(f'image-data-{i}')
+                image_data = form.get(f"gen-image-data-{i}")
                 if image_data:
                     images.append(image_data)
+                
+            # If no images found, try without prefix (backward compatibility)
+            if not images:
+                for i in range(5):
+                    image_data = form.get(f"image-data-{i}")
+                    if image_data:
+                        images.append(image_data)
             
             # Generate new code
             try:
@@ -1124,24 +1139,27 @@ def routes(rt):
                         </script>
                         """)
                     ]
-                else:
-                    # If not in iterative mode or no content available, return the error
+                    
+                # OpenAI API error fallback, suggest alternative model
+                if model.startswith("gpt") and "rate_limit" in str(e).lower():
                     return Div(
-                        H3("Error Generating Code", cls="text-xl font-bold text-red-600 mb-4"),
-                        P(f"Error: {str(e)}", cls="mb-2"),
-                        details := Details(
-                            Summary("View Error Details", cls="cursor-pointer text-blue-500"),
-                            Pre(error_details, cls="mt-2 p-4 bg-gray-100 overflow-auto text-xs")
-                        ),
-                        # Add a button to try with OpenAI instead
+                        Div(f"OpenAI API Rate Limit Error: {str(e)}", cls="text-lg mb-2"),
+                        P("The OpenAI API is rate-limited. Try with Claude or try again later.", cls="mb-3"),
                         Div(
-                            P("You can try using a different model:", cls="mt-4 mb-2"),
                             Button(
-                                "Try with GPT-4o instead",
+                                "Try with Claude 3.5 Haiku",
                                 cls="px-4 py-2 bg-blue-500 text-white rounded mr-2",
                                 hx_post="/api/html5/generate-code",
                                 hx_include="closest form",
-                                hx_vals='{"model": "gpt-4o"}',
+                                hx_vals='{"model": "claude-3-5-haiku-20241022"}',
+                                hx_target="#code-editors-container",
+                                hx_indicator="#loading-indicator"
+                            ),
+                            Button(
+                                "Try Again",
+                                cls="px-4 py-2 bg-green-500 text-white rounded",
+                                hx_post="/api/html5/generate-code",
+                                hx_include="closest form",
                                 hx_target="#code-editors-container",
                                 hx_indicator="#loading-indicator"
                             ),
@@ -1149,11 +1167,34 @@ def routes(rt):
                         ),
                         cls="error alert alert-danger p-4"
                     )
-            
-            # Debug print the session keys to verify
-            print("Session keys after update:", list(req.session.keys()))
-            print(f"History in session: {len(req.session.get('html5_history', []))}")
-            print(f"History in global backup: {len(GLOBAL_HISTORY.get(user_id, []))}")
+                
+                # General error message
+                return Div(
+                    Div(f"Error: {str(e)}", cls="text-lg mb-2"),
+                    P("Please try again with different instructions or a different model", cls="mb-3"),
+                    Div(
+                        Button(
+                            "Try with Claude 3.7 Sonnet",
+                            cls="px-4 py-2 bg-purple-500 text-white rounded mr-2",
+                            hx_post="/api/html5/generate-code",
+                            hx_include="closest form",
+                            hx_vals='{"model": "claude-3-7-sonnet-20250219"}',
+                            hx_target="#code-editors-container",
+                            hx_indicator="#loading-indicator"
+                        ),
+                        Button(
+                            "Try with GPT-4o",
+                            cls="px-4 py-2 bg-blue-500 text-white rounded mr-2",
+                            hx_post="/api/html5/generate-code",
+                            hx_include="closest form",
+                            hx_vals='{"model": "gpt-4o"}',
+                            hx_target="#code-editors-container",
+                            hx_indicator="#loading-indicator"
+                        ),
+                        cls="mt-2"
+                    ),
+                    cls="error alert alert-danger p-4"
+                )
 
             # Create preview content
             preview_content = f"""<!DOCTYPE html>
@@ -1219,142 +1260,275 @@ def routes(rt):
                 create_code_editors(html, css, js),
                 NotStr(f"""
                 <script>
-                (function() {{
-                    // Clear existing dynamic buttons first
-                    const dynamicButtons = document.getElementById('dynamic-buttons');
-                    if (dynamicButtons) {{
-                        dynamicButtons.innerHTML = '';
-                    }}
-
-                    // Show and initialize buttons
-                    const runButton = document.getElementById('run-preview-button');
-                    const undoButton = document.getElementById('undo-button');
-                    const clearButton = document.getElementById('clear-button');
-                    
-                    // Remove any existing ZIP buttons first
-                    const existingZipButton = document.getElementById('create-zip-button');
-                    if (existingZipButton) {{
-                        existingZipButton.remove();
-                    }}
-                    
-                    if (runButton) {{
-                        runButton.classList.remove('hidden');
-                        console.log('Run button visible');
-                    }}
-                    
-                    if (undoButton) {{
-                        undoButton.classList.remove('hidden');
-                        // Check if there's history to enable/disable the button
-                        fetch('/api/html5/check-history')
-                            .then(response => response.json())
-                            .then(data => {{
-                                console.log('Checking undo history:', data);
-                                if (data.hasHistory) {{
-                                    console.log('History available - enabling undo button');
-                                    undoButton.disabled = false;
-                                    undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                                }} else {{
-                                    console.log('No history available - disabling undo button');
-                                    undoButton.disabled = true;
-                                    undoButton.classList.add('opacity-50', 'cursor-not-allowed');
-                                }}
-                            }})
-                            .catch(error => {{
-                                console.error('Error checking history:', error);
-                            }});
-                        console.log('Undo button initialized');
-                    }} else {{
-                        console.warn('Undo button not found in DOM');
-                    }}
-                    
-                    if (clearButton) {{
-                        clearButton.classList.remove('hidden');
-                        console.log('Clear button visible');
-                    }}
-                    
-                    // Create single ZIP button
-                    if (dynamicButtons && !document.getElementById('create-zip-button')) {{
+                    // Add a create ZIP button after generation
+                    const dynamicButtonsContainer = document.getElementById('dynamic-buttons');
+                    if (dynamicButtonsContainer) {{
+                        // Create a ZIP button
                         const zipButton = document.createElement('button');
                         zipButton.id = 'create-zip-button';
-                        zipButton.className = 'action-button bg-gradient-to-r from-blue-500 to-indigo-600';
-                        zipButton.type = 'button'; // Explicitly set button type to prevent form submission
                         zipButton.innerHTML = `
                             <div class="flex items-center justify-center w-full">
-                                <svg viewBox="0 0 24 24" width="20" height="20" class="inline-block">
-                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z" fill="currentColor"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                    <path d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-2v2H9V4h6zM4 8h16v3H4V8zm0 11v-6h16v6H4z"/>
                                 </svg>
-                                <span class="ml-2">Create ZIP Package</span>
-                            </div>
-                        `;
-                        
-                        // We're now using the direct handler in html5_form.py instead of HTMX attributes
-                        // to avoid conflicts between the two approaches
-                        
-                        // Add to the dynamic buttons container
-                        dynamicButtons.appendChild(zipButton);
-                        console.log('ZIP button created');
+                                <span class="ml-2">Create ZIP</span>
+                            </div>`;
+                        zipButton.className = 'action-button bg-gradient-to-r from-indigo-600 to-indigo-500';
+                        // Add explicit onclick handler to call createZipPackage function directly
+                        zipButton.onclick = function(e) {{
+                            e.preventDefault();
+                            console.log("ZIP button clicked with direct onclick handler");
+                            createZipPackage();
+                            return false;
+                        }};
+                        dynamicButtonsContainer.appendChild(zipButton);
                     }}
-                    
-                    // Ensure the preview container exists
-                    const previewContainer = document.getElementById('preview-container');
-                    if (!previewContainer) {{
-                        console.error('Preview container not found');
-                        // Try to create one if it doesn't exist
-                        const workspace = document.querySelector('.workspace-container');
-                        if (workspace) {{
-                            const newPreviewContainer = document.createElement('div');
-                            newPreviewContainer.id = 'preview-container';
-                            newPreviewContainer.className = 'preview-panel';
-                            workspace.appendChild(newPreviewContainer);
-                            console.log('Created new preview container');
+                </script>
+                """),
+                NotStr(f"""
+                <script>
+                    // Add data URL to iframe src
+                    window.setTimeout(function() {{
+                        const iframe = document.createElement('iframe');
+                        iframe.srcdoc = atob("{encoded_content}");
+                        iframe.style.width = '100%';
+                        iframe.style.height = '100%';
+                        iframe.style.border = 'none';
+                        
+                        const container = document.getElementById('preview-container');
+                        if (container) {{
+                            container.innerHTML = '';
+                            container.appendChild(iframe);
                         }}
-                    }}
-                    
-                    // Update the preview directly with the data URL
-                    const finalPreviewContainer = document.getElementById('preview-container');
-                    if (finalPreviewContainer) {{
-                        finalPreviewContainer.innerHTML = `
-                            <iframe 
-                                src="data:text/html;base64,{encoded_content}" 
-                                width="100%" height="100%" 
-                                frameborder="0" 
-                                allowfullscreen="true" 
-                                style="background-color: #121212; display: block;">
-                            </iframe>
-                        `;
-                        console.log('Preview updated with iframe');
-                    }} else {{
-                        console.error('Could not find or create preview container');
-                    }}
-                }})();
+                    }}, 300);
                 </script>
                 """)
             ]
-            
+                
         except Exception as e:
+            print(f"Error in generate-code route: {str(e)}")
             import traceback
-            error_details = traceback.format_exc()
+            traceback.print_exc()
             return Div(
-                H3("Error Generating Code", cls="text-xl font-bold text-red-600 mb-4"),
-                P(f"Error: {str(e)}", cls="mb-2"),
-                details := Details(
-                    Summary("View Error Details", cls="cursor-pointer text-blue-500"),
-                    Pre(error_details, cls="mt-2 p-4 bg-gray-100 overflow-auto text-xs")
-                ),
-                # Add a button to try with OpenAI instead
+                f"Error: {str(e)}",
+                cls="error alert alert-danger p-4"
+            )
+            
+    @rt('/api/html5/refine-code')
+    async def post(req):
+        """Refine existing HTML5 code based on reference images and refinement instructions"""
+        try:
+            # Get user ID from session for history tracking
+            user_id = req.session.get('auth', 'anonymous')
+            
+            # Get form data
+            form = await req.form()
+            
+            # Extract current code from the hidden fields
+            current_html = form.get('current_html', '')
+            current_css = form.get('current_css', '')
+            current_js = form.get('current_js', '')
+            
+            print("\n----- REFINEMENT DEBUG -----")
+            print(f"Current HTML length: {len(current_html)}")
+            print(f"Current CSS length: {len(current_css)}")
+            print(f"Current JS length: {len(current_js)}")
+            
+            # Store in history if we have content
+            if current_html or current_css or current_js:
+                # Get existing history from session or global backup
+                history = req.session.get('html5_history', [])
+                
+                # If session history is empty but we have global history, use that
+                if not history and user_id in GLOBAL_HISTORY:
+                    history = GLOBAL_HISTORY[user_id]
+                    print(f"Retrieved history from global backup. Size: {len(history)}")
+                
+                # Create a copy of the history to avoid reference issues
+                history = list(history)
+                
+                current_state = {
+                    'html': current_html,
+                    'css': current_css,
+                    'js': current_js
+                }
+                
+                # Only add to history if this state is different from the last one
+                if not history or (history[-1]['html'] != current_html or 
+                                history[-1]['css'] != current_css or 
+                                history[-1]['js'] != current_js):
+                    history.append(current_state)
+                    
+                    # Store the updated history back in the session
+                    # Make a completely new copy to ensure it's stored properly
+                    req.session['html5_history'] = list(history)
+                    
+                    # Also store in global backup
+                    GLOBAL_HISTORY[user_id] = list(history)
+                    
+                    print(f"Added state to history. History size: {len(history)}")
+            else:
+                print("No current code to refine")
+                return Div(
+                    "Error: No code to refine. Please generate code first.",
+                    cls="error alert alert-danger p-4"
+                )
+            
+            # Get refinement instructions and model
+            prompt = form.get('prompt', '')
+            model = form.get('model', 'gpt-4o')
+            
+            # For refinement, always use iterative mode
+            is_iterative = True
+            
+            # Get reference images - use iteration tab prefixes
+            images = []
+            for i in range(5):
+                image_data = form.get(f"iter-image-data-{i}")
+                if image_data:
+                    images.append(image_data)
+                
+            # If no images found, try without prefix (backward compatibility)
+            if not images:
+                for i in range(5):
+                    image_data = form.get(f"image-data-{i}")
+                    if image_data:
+                        images.append(image_data)
+            
+            # Generate refined code
+            try:
+                html, css, js = await generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js)
+                print(f"Successfully refined code - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                
+                # If no content was returned, return an error
+                if not (html or css or js):
+                    raise ValueError("No content was generated from refinement. Please try again with different instructions.")
+                
+                # Store the new state in session
+                req.session['html'] = html
+                req.session['css'] = css
+                req.session['js'] = js
+            except Exception as e:
+                print(f"Error refining code: {str(e)}")
+                import traceback
+                error_details = traceback.format_exc()
+                print(f"Error details: {error_details}")
+                
+                # Return the original content with an error message
+                return [
+                    Div(f"Error: {str(e)} - Using your existing code", cls="bg-red-800 text-white p-2 mb-4 rounded"),
+                    create_code_editors(current_html, current_css, current_js),
+                    NotStr(f"""
+                    <script>
+                        console.error("Error in code refinement: {str(e)}");
+                    </script>
+                    """)
+                ]
+            
+            # Create preview content
+            preview_content = f"""<!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                body {{
+                    background-color: #121212;
+                    color: #ffffff;
+                    margin: 0;
+                    padding: 0;
+                    font-family: Arial, sans-serif;
+                    min-height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                }}
+                /* User CSS */
+                {css}
+                </style>
+            </head>
+            <body>
+                <div id="content-container">
+                    {html}
+                </div>
+                <script>
+                // Initialize content and catch errors
+                try {{
+                    {js}
+                }} catch (error) {{
+                    console.error('Error in JavaScript execution:', error);
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.color = 'red';
+                    errorDiv.style.padding = '10px';
+                    errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
+                    document.body.appendChild(errorDiv);
+                }}
+                </script>
+            </body>
+            </html>"""
+            
+            # Encode the content as base64
+            encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
+            
+            # Return with a refinement success banner
+            return [
                 Div(
-                    P("You can try using a different model:", cls="mt-4 mb-2"),
-                    Button(
-                        "Try with GPT-4o instead",
-                        cls="px-4 py-2 bg-blue-500 text-white rounded mr-2",
-                        hx_post="/api/html5/generate-code",
-                        hx_include="closest form",
-                        hx_vals='{"model": "gpt-4o"}',
-                        hx_target="#code-editors-container",
-                        hx_indicator="#loading-indicator"
-                    ),
-                    cls="mt-2"
+                    "Code Successfully Refined",
+                    cls="bg-green-900 text-green-100 p-2 rounded mb-4"
                 ),
+                create_code_editors(html, css, js),
+                NotStr(f"""
+                <script>
+                    // Add a create ZIP button after refinement
+                    const dynamicButtonsContainer = document.getElementById('dynamic-buttons');
+                    if (dynamicButtonsContainer) {{
+                        // Create a ZIP button
+                        const zipButton = document.createElement('button');
+                        zipButton.id = 'create-zip-button';
+                        zipButton.innerHTML = `
+                            <div class="flex items-center justify-center w-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                    <path d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-2v2H9V4h6zM4 8h16v3H4V8zm0 11v-6h16v6H4z"/>
+                                </svg>
+                                <span class="ml-2">Create ZIP</span>
+                            </div>`;
+                        zipButton.className = 'action-button bg-gradient-to-r from-indigo-600 to-indigo-500';
+                        // Add explicit onclick handler to call createZipPackage function directly
+                        zipButton.onclick = function(e) {{
+                            e.preventDefault();
+                            console.log("ZIP button clicked with direct onclick handler");
+                            createZipPackage();
+                            return false;
+                        }};
+                        dynamicButtonsContainer.appendChild(zipButton);
+                    }}
+                </script>
+                """),
+                NotStr(f"""
+                <script>
+                    // Add data URL to iframe src
+                    window.setTimeout(function() {{
+                        const iframe = document.createElement('iframe');
+                        iframe.srcdoc = atob("{encoded_content}");
+                        iframe.style.width = '100%';
+                        iframe.style.height = '100%';
+                        iframe.style.border = 'none';
+                        
+                        const container = document.getElementById('preview-container');
+                        if (container) {{
+                            container.innerHTML = '';
+                            container.appendChild(iframe);
+                        }}
+                    }}, 300);
+                </script>
+                """)
+            ]
+                
+        except Exception as e:
+            print(f"Error in refine-code route: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Div(
+                f"Error: {str(e)}",
                 cls="error alert alert-danger p-4"
             )
 
@@ -1465,8 +1639,6 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
         else:
             system_prompt += """
             
-
-            
             NEW CONTENT CREATION INSTRUCTIONS:
             Important:
             - Use the provided reference images as inspiration and references.
@@ -1478,7 +1650,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             User request and instructions:
             """
             
-        print(f"System prompt: {system_prompt}")
+        # print(f"System prompt: {system_prompt}")
         
         # Get user ID from session for token tracking
         user_id = "anonymous"  # Default user ID
@@ -1523,15 +1695,15 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                     ]
                 )
                 prompt_tokens = token_count_response.input_tokens
-                
+                print("Message content: ", message_content)
                 # Make the actual API call
                 response = client.messages.create(
                     model=model,
-                        max_tokens=8192,
-                        # thinking={
-                        #     "type": "enabled",
-                        #     "budget_tokens":16000
-                        # },# Use a more reasonable token limit
+                    max_tokens=8192,
+                    # thinking={
+                    #     "type": "enabled",
+                    #     "budget_tokens":16000
+                    # },# Use a more reasonable token limit
                     temperature=0.4,
                     tools=[
                         {
@@ -1583,8 +1755,8 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                                 
                                 # Print the raw JSON for debugging
                                 import json
-                                print(f"TOOL USE JSON DATA:")
-                                print(json.dumps(tool_input, indent=2))
+                                #print(f"TOOL USE JSON DATA:")
+                                #print(json.dumps(tool_input, indent=2))
                                 
                                 if tool_name == 'extract_code_components':
                                     html = tool_input.get('html', '')
@@ -1594,8 +1766,8 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                                     print(f"Successfully extracted components using tool - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
                                     
                                     # Print JS for debugging
-                                    print(f"JavaScript content (first 500 chars):")
-                                    print(js[:500] + "..." if len(js) > 500 else js)
+                                    #print(f"JavaScript content (first 500 chars):")
+                                    #print(js[:500] + "..." if len(js) > 500 else js)
                                     
                                     # If JavaScript is missing or empty, collect text content for later extraction
                                     if not js:
@@ -1614,20 +1786,20 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                         
                         # If we have valid HTML, CSS and JS from tool use, return the components
                         if tool_use_found and html and (css or True) and js:  # CSS is optional
-                            # Record token usage
-                            completion_tokens = response.usage.output_tokens
-                            total_tokens = prompt_tokens + completion_tokens
+                            # # Record token usage
+                            # completion_tokens = response.usage.output_tokens
+                            # total_tokens = prompt_tokens + completion_tokens
                             
-                            # Save token usage to database
-                            token_count.record_token_usage(
-                                model=model,
-                                prompt=prompt[:500] if prompt else None,
-                                prompt_tokens=prompt_tokens,
-                                completion_tokens=completion_tokens,
-                                total_tokens=total_tokens,
-                                user_id=user_id,
-                                session_id=session_id
-                            )
+                            # # Save token usage to database
+                            # token_count.record_token_usage(
+                            #     model=model,
+                            #     prompt=prompt[:500] if prompt else None,
+                            #     prompt_tokens=prompt_tokens,
+                            #     completion_tokens=completion_tokens,
+                            #     total_tokens=total_tokens,
+                            #     user_id=user_id,
+                            #     session_id=session_id
+                            # )
                             
                             return html, css, js
                         
@@ -1657,7 +1829,6 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                             js = js_match.group(1).strip()
                             print(f"Extracted JavaScript with targeted regex - {len(js)} chars")
                     
-             
                     # Verify we have content
                     if not (html or css or js):
                         print("WARNING: No content extracted from Claude tool use. Using original content.")
@@ -1828,7 +1999,6 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                             js = js_match.group(1).strip()
                             print(f"Extracted JavaScript with targeted regex - {len(js)} chars")
                     
-
                     # Verify we have content
                     if not (html or css or js):
                         print("WARNING: No content extracted from OpenAI response. Using original content.")
@@ -1840,9 +2010,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 else:
                     print("OpenAI returned empty response")
                     raise ValueError("OpenAI returned an empty response")
-                
             except Exception as e:
                 raise ValueError(f"OpenAI API error: {str(e)}")
-                
     except Exception as e:
         raise ValueError(f"Error generating code: {str(e)}")

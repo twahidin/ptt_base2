@@ -3,12 +3,247 @@ import os
 import base64
 from io import BytesIO
 from PIL import Image
+import yaml  # Add import for yaml
 
-def create_file_uploader(index=0):
+def create_recipe_carousel(recipe_templates):
+    """Create a carousel of recipe template cards"""
+    return Div(
+        # Carousel styles
+        Style("""
+            .recipe-carousel {
+                position: relative;
+                width: 100%;
+                padding: 0 40px;
+                margin-bottom: 20px;
+            }
+            .carousel-container {
+                overflow-x: auto;
+                scroll-behavior: smooth;
+                scrollbar-width: none; /* Firefox */
+                -ms-overflow-style: none; /* IE/Edge */
+                padding: 10px 0;
+                display: flex;
+                gap: 15px;
+            }
+            .carousel-container::-webkit-scrollbar {
+                display: none; /* Chrome/Safari/Opera */
+            }
+            .recipe-card {
+                flex: 0 0 280px;
+                height: 180px;
+                background-color: #2d3748;
+                border-radius: 8px;
+                border: 2px solid #4a5568;
+                padding: 15px;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                display: flex;
+                flex-direction: column;
+            }
+            .recipe-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+                border-color: #63b3ed;
+            }
+            .recipe-card.selected {
+                border-color: #38a169;
+                box-shadow: 0 0 0 2px #38a169;
+            }
+            .recipe-title {
+                font-weight: 600;
+                font-size: 1.1rem;
+                margin-bottom: 8px;
+                color: #e2e8f0;
+            }
+            .recipe-preview {
+                font-size: 0.9rem;
+                color: #a0aec0;
+                overflow: hidden;
+                display: -webkit-box;
+                -webkit-line-clamp: 4;
+                -webkit-box-orient: vertical;
+                flex-grow: 1;
+            }
+            .carousel-button {
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                background-color: #2d3748;
+                color: white;
+                border: none;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                z-index: 10;
+                opacity: 0.8;
+                transition: opacity 0.2s;
+                font-weight: bold;
+                font-size: 18px;
+                line-height: 1;
+                padding: 0;
+            }
+            .carousel-button:hover {
+                opacity: 1;
+            }
+            .prev-button {
+                left: 0;
+            }
+            .next-button {
+                right: 0;
+            }
+            .carousel-button-content {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                width: 100%;
+                line-height: 1;
+                position: relative;
+                top: -1px; /* Fine-tune vertical alignment */
+            }
+            .carousel-arrow {
+                margin: 0 2px;
+                display: inline-block;
+                position: relative;
+                top: 1px; /* Fine-tune vertical position */
+            }
+            .recipe-tag {
+                display: inline-block;
+                background-color: #1a202c;
+                color: #a0aec0;
+                font-size: 0.7rem;
+                padding: 2px 8px;
+                border-radius: 12px;
+                margin-top: auto;
+                align-self: flex-start;
+            }
+        """),
+        
+        # Carousel HTML structure
+        H3("HTML5 Template Library", cls="text-lg font-bold mb-4"),
+        Div(
+            # Previous button
+            Button(
+                Div(
+                    Span("←", cls="carousel-arrow"),  # Changed class for better alignment
+                    cls="carousel-button-content"
+                ),
+                id="prev-button",
+                cls="carousel-button prev-button",
+                type="button",
+                onclick="document.getElementById('carousel-container').scrollBy({left: -300, behavior: 'smooth'})"
+            ),
+            
+            # Recipe cards container
+            Div(
+                *[Div(
+                    Div(recipe_name.replace('_template', '').replace('_', ' ').title(), cls="recipe-title"),
+                    Div(recipe[:120] + "..." if len(recipe) > 120 else recipe, cls="recipe-preview"),
+                    Div("Template", cls="recipe-tag"),
+                    id=f"recipe-{i+1}",
+                    cls="recipe-card",
+                    # Use HTML attributes with proper JSON encoding of the recipe text
+                    **{"data-recipe-key": recipe_name, 
+                    "data-recipe-text": recipe,
+                    "onclick": f"window.handleRecipeClick(this)"}
+                ) for i, (recipe_name, recipe) in enumerate(recipe_templates.items())],
+                id="carousel-container",
+                cls="carousel-container"
+            ),
+            
+            # Next button
+            Button(
+                Div(
+                    Span("→", cls="carousel-arrow"),  # Changed class for better alignment
+                    cls="carousel-button-content"
+                ),
+                id="next-button",
+                cls="carousel-button next-button",
+                type="button",
+                onclick="document.getElementById('carousel-container').scrollBy({left: 300, behavior: 'smooth'})"
+            ),
+            
+            cls="recipe-carousel mb-4"
+        ),
+        
+        # JavaScript for recipe selection
+        NotStr("""
+        <script>
+            // Global handler function
+            window.handleRecipeClick = function(element) {
+                const recipeKey = element.getAttribute('data-recipe-key');
+                const recipeText = element.getAttribute('data-recipe-text');
+                
+                console.log("Recipe clicked:", recipeKey);
+                
+                // Find and update the textarea - first try TinyMCE, then fallback to regular textarea
+                const textarea = document.getElementById('prompt');
+                let updated = false;
+                
+                // Try to update TinyMCE if it's initialized
+                if (typeof tinymce !== 'undefined' && tinymce.get('prompt')) {
+                    tinymce.get('prompt').setContent(recipeText);
+                    updated = true;
+                    console.log("Updated TinyMCE with recipe text");
+                } 
+                // Fallback to regular textarea
+                else if (textarea) {
+                    textarea.value = recipeText;
+                    updated = true;
+                    console.log("Updated regular textarea with recipe text");
+                } else {
+                    console.error("Could not find prompt textarea");
+                }
+                
+                // Highlight the selected card
+                document.querySelectorAll('.recipe-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                element.classList.add('selected');
+                
+                // Show a confirmation message
+                if (updated) {
+                    const confirmationEl = document.createElement('div');
+                    confirmationEl.textContent = 'Template applied! You can now edit it.';
+                    confirmationEl.className = 'text-sm text-green-500 mt-2 mb-2 text-center';
+                    
+                    // Insert the confirmation before the prompt
+                    const promptContainer = textarea.closest('div');
+                    
+                    // Remove any existing confirmation
+                    const existingConfirmation = document.getElementById('template-confirmation');
+                    if (existingConfirmation) {
+                        existingConfirmation.remove();
+                    }
+                    
+                    // Add the new confirmation
+                    confirmationEl.id = 'template-confirmation';
+                    if (promptContainer) {
+                        promptContainer.insertBefore(confirmationEl, textarea);
+                        
+                        // Auto-remove the confirmation after 3 seconds
+                        setTimeout(() => {
+                            confirmationEl.style.opacity = '0';
+                            confirmationEl.style.transition = 'opacity 0.5s';
+                            setTimeout(() => confirmationEl.remove(), 500);
+                        }, 3000);
+                    }
+                }
+            };
+        </script>
+        """),
+        id="recipe-section"
+    )
+
+def create_file_uploader(index=0, tab_prefix="gen"):
     """Create a file uploader that supports both direct file upload and base64 data"""
     return Div(
         # Hidden input for storing base64 data
-        Input(type="hidden", id=f"image-data-{index}", name=f"image-data-{index}"),
+        Input(type="hidden", id=f"{tab_prefix}-image-data-{index}", name=f"image-data-{index}"),
         
         # Title for each uploader
         H4(f"Image {index+1}", cls="text-lg font-semibold mb-2 text-blue-300"),
@@ -17,7 +252,7 @@ def create_file_uploader(index=0):
         Label(
             Input(
                 type="file", 
-                id=f"image-upload-{index}", 
+                id=f"{tab_prefix}-image-upload-{index}", 
                 name=f"image-upload-{index}",
                 accept="image/*",
                 cls="block w-full text-sm text-gray-400 bg-gray-700 rounded cursor-pointer mb-2 p-2 border border-gray-600 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -28,28 +263,28 @@ def create_file_uploader(index=0):
         # Preview container with improved styling
         Div(
             cls="image-preview hidden w-full h-32 bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden mb-3 border border-gray-600",
-            id=f"preview-container-{index}"
+            id=f"{tab_prefix}-preview-container-{index}"
         ),
         
         # JavaScript to handle immediate preview and store base64 data
         # Enhanced to add visual feedback when image is loaded
         Script(f"""
-        document.getElementById('image-upload-{index}').addEventListener('change', function(e) {{
+        document.getElementById('{tab_prefix}-image-upload-{index}').addEventListener('change', function(e) {{
             const file = e.target.files[0];
-            const container = document.getElementById('uploader-container-{index}');
+            const container = document.getElementById('{tab_prefix}-uploader-container-{index}');
             
             if (file) {{
                 const reader = new FileReader();
                 
                 reader.onload = function(e) {{
                     // Show preview
-                    const previewContainer = document.getElementById('preview-container-{index}');
+                    const previewContainer = document.getElementById('{tab_prefix}-preview-container-{index}');
                     previewContainer.innerHTML = `<img src="${{e.target.result}}" class="max-h-full max-w-full object-contain" />`;
                     previewContainer.classList.remove('hidden');
                     
                     // Store base64 data in the hidden input
                     const base64Data = e.target.result.split(',')[1];
-                    document.getElementById('image-data-{index}').value = base64Data;
+                    document.getElementById('{tab_prefix}-image-data-{index}').value = base64Data;
                     
                     // Add visual indication that this uploader has an image
                     container.classList.add('has-image');
@@ -61,23 +296,23 @@ def create_file_uploader(index=0):
                 container.classList.remove('has-image');
                 
                 // Hide preview container
-                const previewContainer = document.getElementById('preview-container-{index}');
+                const previewContainer = document.getElementById('{tab_prefix}-preview-container-{index}');
                 previewContainer.innerHTML = '';
                 previewContainer.classList.add('hidden');
                 
                 // Clear hidden input
-                document.getElementById('image-data-{index}').value = '';
+                document.getElementById('{tab_prefix}-image-data-{index}').value = '';
             }}
         }});
         """),
         
         cls="file-uploader-container mb-6 p-4 border-2 border-gray-700 rounded-lg bg-gray-900 transition-all hover:shadow-md",
-        id=f"uploader-container-{index}"
+        id=f"{tab_prefix}-uploader-container-{index}"
     )
 
-def create_multiple_uploaders(count=5):
+def create_multiple_uploaders(count=5, tab_prefix="gen"):
     """Create multiple simple file uploaders"""
-    uploaders = [create_file_uploader(i) for i in range(count)]
+    uploaders = [create_file_uploader(i, tab_prefix) for i in range(count)]
     
     # Create the "Remove All Images" button container with enhanced styling
     clear_button_container = Div(
@@ -90,38 +325,38 @@ def create_multiple_uploaders(count=5):
                 Span("Remove All Images", cls="ml-2"),
                 cls="flex items-center justify-center"
             ),
-            id="clear-all-images-button",
+            id=f"{tab_prefix}-clear-all-images-button",
             type="button",
             cls="w-full py-2 px-4 bg-red-500 text-white rounded hover:bg-red-600"
         ),
         # JavaScript to handle clearing all images
-        Script("""
-        document.getElementById('clear-all-images-button').addEventListener('click', function() {
+        Script(f"""
+        document.getElementById('{tab_prefix}-clear-all-images-button').addEventListener('click', function() {{
             // Clear all file inputs        
-            for (let i = 0; i < 5; i++) {
-                const fileInput = document.getElementById(`image-upload-${i}`);
-                if (fileInput) {
+            for (let i = 0; i < 5; i++) {{
+                const fileInput = document.getElementById(`{tab_prefix}-image-upload-${{i}}`);
+                if (fileInput) {{
                     fileInput.value = '';
-                }
-            }   
+                }}
+            }}   
 
             // Clear all hidden base64 inputs
-            for (let i = 0; i < 5; i++) {
-                const base64Input = document.getElementById(`image-data-${i}`);
-                if (base64Input) {
+            for (let i = 0; i < 5; i++) {{
+                const base64Input = document.getElementById(`{tab_prefix}-image-data-${{i}}`);
+                if (base64Input) {{
                     base64Input.value = '';
-                }                   
-            }
+                }}                   
+            }}
 
             // Hide all preview containers
-            for (let i = 0; i < 5; i++) {
-                const previewContainer = document.getElementById(`preview-container-${i}`);
-                if (previewContainer) {
+            for (let i = 0; i < 5; i++) {{
+                const previewContainer = document.getElementById(`{tab_prefix}-preview-container-${{i}}`);
+                if (previewContainer) {{
                     previewContainer.innerHTML = '';    
                     previewContainer.classList.add('hidden');
-                }
-            }
-        });
+                }}
+            }}
+        }});
         """),
         cls="mt-4 p-2 border border-gray-700 rounded bg-gray-800"
     )   
@@ -137,8 +372,17 @@ def create_multiple_uploaders(count=5):
 
 def create_html5_form(api_key=None):
     """Create the HTML5 editor form with simplified image uploaders"""
+    # Load templates from config.yaml
+    try:
+        with open('config.yaml', 'r') as file:
+            config = yaml.safe_load(file)
+            recipe_templates = {k: v for k, v in config.get('templates', {}).items()}
+    except Exception as e:
+        print(f"Error loading config.yaml: {e}")
+        recipe_templates = {}
+    
     return Div(
-        # Add styles for the preview, editors, etc.
+        # Add styles for the preview, editors, tabs, etc.
         Style("""
             body {
                 background-color: #121212;
@@ -408,7 +652,7 @@ def create_html5_form(api_key=None):
             
             .tab.active {
                 color: #fff;
-                border-bottom: 2px solid #4299e1;
+                border-bottom: 2px solid #48bb78;
                 background-color: #2d3748;
                 position: relative;
             }
@@ -420,9 +664,53 @@ def create_html5_form(api_key=None):
                 left: 0;
                 width: 100%;
                 height: 2px;
-                background: linear-gradient(to right, #4299e1, #7f9cf5);
+                background: linear-gradient(to right, #48bb78, #68d391);
             }
             
+            /* Main tabs styling */
+            .main-tab-header {
+                display: flex;
+                background-color: #2d3748;
+                border-radius: 0.5rem 0.5rem 0 0;
+                overflow: hidden;
+                margin-bottom: 0;
+            }
+            
+            .main-tab {
+                padding: 1rem 2rem;
+                background: none;
+                border: none;
+                color: #a0aec0;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                border-bottom: 3px solid transparent;
+                transition: all 0.3s ease;
+                flex: 1;
+                text-align: center;
+            }
+            
+            .main-tab:hover {
+                color: #fff;
+                background-color: #4a5568;
+            }
+            
+            .main-tab.active {
+                color: #48bb78;
+                border-bottom: 3px solid #48bb78;
+                background-color: #1a202c;
+            }
+            
+            .main-tab-panel {
+                display: none;
+                padding: 1.5rem;
+                background-color: #1a202c;
+                border-radius: 0 0 0.5rem 0.5rem;
+            }
+            
+            .main-tab-panel.active {
+                display: block;
+            }
         """),
         
         # Include TinyMCE script
@@ -445,313 +733,256 @@ def create_html5_form(api_key=None):
         ),
 
         
-        # Code generator form
+        # Main Tabs Container
         Card(
-            Form(
-                # Hidden API Key
-                Input(id='api_key', name='api_key',
-                    value=api_key,
-                    type='hidden'),
-                
-                # Model selector
-                Div(
-                    Label("Model:", cls="block mb-2"),
-                    Select(
-                        #Gpt 4.5 
-                        Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
-                        Option("GPT-4.5", value="gpt-4.5-preview"),
-                        Option("GPT-4o", value="gpt-4o"),
-                        Option("GPT-4o Mini", value="gpt-4o-mini"),
-                        Option("GPT-o1", value="o1"),
-                        Option("GPT-o3-mini", value="o3-mini"),
-                        Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
-                        id="model-selector",
-                        name="model",
-                        cls="w-full p-2 border rounded"
+            # Main Tab Navigation
+            Div(
+                Button("Generation", 
+                       id="generation-tab", 
+                       type="button", 
+                       cls="main-tab active", 
+                       onclick="switchMainTab('generation', event)"),
+                Button("Iteration", 
+                       id="iteration-tab", 
+                       type="button", 
+                       cls="main-tab", 
+                       onclick="switchMainTab('iteration', event)"),
+                cls="main-tab-header"
+            ),
+            
+            # Generation Tab Panel
+            Div(
+                Form(
+                    # Hidden API Key
+                    Input(id='api_key', name='api_key',
+                        value=api_key,
+                        type='hidden'),
+                    
+                    # Model selector
+                    Div(
+                        Label("Model:", cls="block mb-2"),
+                        Select(
+                            Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
+                            Option("GPT-4.5", value="gpt-4.5-preview"),
+                            Option("GPT-4o", value="gpt-4o"),
+                            Option("GPT-4o Mini", value="gpt-4o-mini"),
+                            Option("GPT-o1", value="o1"),
+                            Option("GPT-o3-mini", value="o3-mini"),
+                            Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
+                            id="model-selector",
+                            name="model",
+                            cls="w-full p-2 border rounded"
+                        ),
+                        cls="mb-4"
                     ),
-                    cls="mb-4"
+                    
+                    # Add recipe carousel
+                    create_recipe_carousel(recipe_templates) if recipe_templates else Div(),
+                    
+                    # Rich Text Editor for prompt
+                    Div(
+                        Label("HTML5 Prompt:", cls="block mb-2"),
+                        # Basic textarea for initial render and as fallback
+                        Textarea("", 
+                              id='prompt', 
+                              name='prompt', 
+                              placeholder='Describe the HTML5 interactive content you want to generate...',
+                              rows=32,
+                              cls="w-full p-2 border rounded"),
+                        cls="mb-4"
+                    ),
+                    
+                    # File upload section - simplified to basic file inputs
+                    Div(
+                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2"),
+                        P("Upload images to be used as references in your interactive content", 
+                          cls="text-sm text-gray-400 mb-4"),
+                        
+                        create_multiple_uploaders(5, "gen"),
+                        
+                        cls="mb-6 p-4 border border-gray-700 rounded bg-gray-900"
+                    ),
+                    
+                    # Generate button
+                    Button("Generate", 
+                           type='submit',
+                           hx_post="/api/html5/generate-code",
+                           hx_target="#code-editors-container",
+                           hx_indicator="#loading-indicator",
+                           cls="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
+                    
+                    id="html5-form",
+                    enctype="multipart/form-data",
+                    cls="space-y-4",
+                ),
+                id="generation-panel",
+                cls="main-tab-panel active"
+            ),
+            
+            # Iteration Tab Panel (empty for now)
+            Div(
+                Form(
+                    # Hidden API Key
+                    Input(id='api_key_iteration', name='api_key',
+                        value=api_key,
+                        type='hidden'),
+                    
+                    # Hidden fields for current code
+                    Input(id='current_html', name='current_html', type='hidden'),
+                    Input(id='current_css', name='current_css', type='hidden'),
+                    Input(id='current_js', name='current_js', type='hidden'),
+                    
+                    # Model selector
+                    Div(
+                        Label("Model:", cls="block mb-2"),
+                        Select(
+                            Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
+                            Option("GPT-4.5", value="gpt-4.5-preview"),
+                            Option("GPT-4o", value="gpt-4o"),
+                            Option("GPT-4o Mini", value="gpt-4o-mini"),
+                            Option("GPT-o1", value="o1"),
+                            Option("GPT-o3-mini", value="o3-mini"),
+                            Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
+                            id="model-selector-iteration",
+                            name="model",
+                            cls="w-full p-2 border rounded"
+                        ),
+                        cls="mb-4"
+                    ),
+                    
+                    # Rich Text Editor for refinement prompt (half the height)
+                    Div(
+                        Label("Refinement Instructions:", cls="block mb-2 text-blue-400"),
+                        # Basic textarea for initial render and as fallback
+                        Textarea("", 
+                              id='refinement_prompt', 
+                              name='prompt', 
+                              placeholder='Describe how you want to refine the current HTML5 content...',
+                              rows=16,
+                              cls="w-full p-2 border rounded border-blue-500 bg-gray-800"),
+                        cls="mb-4"
+                    ),
+                    
+                    # File upload section - simplified to basic file inputs
+                    Div(
+                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2"),
+                        P("Upload images to be used as references in your refinement", 
+                          cls="text-sm text-gray-400 mb-4"),
+                        
+                        create_multiple_uploaders(5, "iter"),
+                        
+                        cls="mb-6 p-4 border border-gray-700 rounded bg-gray-900"
+                    ),
+                    
+                    # Refinement button
+                    Button("Refine", 
+                           type='submit',
+                           hx_post="/api/html5/refine-code",
+                           hx_target="#code-editors-container",
+                           hx_indicator="#loading-indicator",
+                           cls="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
+                    
+                    id="refinement-form",
+                    enctype="multipart/form-data",
+                    cls="space-y-4",
+                ),
+                id="iteration-panel",
+                cls="main-tab-panel"
+            ),
+            
+            # Loading and results container
+            Div(
+                # Loading indicator
+                Div(
+                    P("Generating HTML5 content... Please wait."),
+                    Div(cls="loading-spinner"),
+                    id="loading-indicator",
+                    cls="htmx-indicator text-center"
                 ),
                 
-                # Add iterative toggle switch
+                # Editors container - will be populated by the generate endpoint
+                Div(id="code-editors-container", cls="mt-4"),
+                # Editor buttons container
                 Div(
-                    Label(
+                    # Run Preview button
+                    Button("Run Preview",
+                        id="run-preview-button",
+                        hx_post="/api/html5/preview",
+                        hx_target="#preview-container",
+                        hx_include="#html-editor,#css-editor,#js-editor",
+                        cls="action-button bg-gradient-to-r from-green-600 to-green-500 hidden"),
+                    
+                    # Undo button with icon
+                    Button(
                         Div(
-                            Input(
-                                type="checkbox",
-                                id="iterative-toggle",
-                                name="iterative-toggle",
-                                cls="sr-only peer",
-                                checked=True,
-                                value="on"  # Added value attribute to ensure proper form submission
+                            Svg(
+                                Path(d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z", 
+                                     fill="currentColor"),
+                                viewBox="0 0 24 24", 
+                                width="20", 
+                                height="20"
                             ),
-                            Div(
-                                cls="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600",
-                            ),
-                            cls="relative inline-flex items-center cursor-pointer"
+                            Span("Undo", cls="ml-2"),
+                            cls="flex items-center justify-center w-full"
                         ),
-                        Span("Iterative Mode", cls="ml-3 text-sm font-medium text-gray-300"),
-                        cls="inline-flex items-center cursor-pointer"
-                    ),
-                    P("When enabled, existing code will be included in your next prompt for refinement", 
-                    cls="text-xs text-gray-400 mt-1 ml-14"),
-                    cls="flex flex-col mb-4 iterative-container" # Added iterative-container class for styling
-                ),
-                
-                
-                
-                # Rich Text Editor for prompt
-                Div(
-                    Label("HTML5 Prompt:", cls="block mb-2"),
-                    # Basic textarea for initial render and as fallback
-                    Textarea("", 
-                          id='prompt', 
-                          name='prompt', 
-                          placeholder='Describe the HTML5 interactive content you want to generate...',
-                          rows=8,
-                          cls="w-full p-2 border rounded"),
-                    cls="mb-4"
-                ),
-                
-                
-                
-                                # File upload section - simplified to basic file inputs
-                Div(
-                    H3("Reference Images (Up to 5):", cls="block text-lg mb-2"),
-                    P("Upload images to be used as references in your interactive content", 
-                      cls="text-sm text-gray-400 mb-4"),
-                    
-                    create_multiple_uploaders(5),
-                    
-                    cls="mb-6 p-4 border border-gray-700 rounded bg-gray-900"
-                ),
-                # Generate button
-                Button("Generate", 
-                       type='submit',
-                       hx_post="/api/html5/generate-code",
-                       hx_target="#code-editors-container",
-                       hx_indicator="#loading-indicator",
-                       cls="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
-                
-                # Loading and results container
-                Div(
-                    # Loading indicator
-                    Div(
-                        P("Generating HTML5 content... Please wait."),
-                        Div(cls="loading-spinner"),
-                        id="loading-indicator",
-                        cls="htmx-indicator text-center"
-                    ),
-                    
-                    # Editors container - will be populated by the generate endpoint
-                    Div(id="code-editors-container", cls="mt-4"),
-                    # Editor buttons container
-                    Div(
-                        # Run Preview button
-                        Button("Run Preview",
-                            id="run-preview-button",
-                            hx_post="/api/html5/preview",
-                            hx_target="#preview-container",
-                            hx_include="#html-editor,#css-editor,#js-editor",
-                            cls="action-button bg-gradient-to-r from-green-600 to-green-500 hidden"),
-                        
-                        # Undo button with icon
-                        Button(
-                            Div(
-                                Svg(
-                                    Path(d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z", 
-                                         fill="currentColor"),
-                                    viewBox="0 0 24 24", 
-                                    width="20", 
-                                    height="20"
-                                ),
-                                Span("Undo", cls="ml-2"),
-                                cls="flex items-center justify-center w-full"
-                            ),
-                            id="undo-button",
-                            hx_post="/api/html5/undo",
-                            hx_target="#code-editors-container",
-                            hx_swap="innerHTML",
-                            disabled=True,
-                            cls="action-button bg-gradient-to-r from-blue-600 to-blue-500 hidden opacity-50 cursor-not-allowed",
-                            hx_trigger="click",
-                            hx_include="[id='html-editor'],[id='css-editor'],[id='js-editor']",
-                            hx_on_after_request="""
-                                if(event.detail.successful) {
-                                    // Check if there's more history available
-                                    fetch('/api/html5/check-history')
-                                        .then(response => response.json())
-                                        .then(data => {
-                                            if(data.hasHistory) {
-                                                this.disabled = false;
-                                                this.classList.remove('opacity-50', 'cursor-not-allowed');
-                                            } else {
-                                                this.disabled = true;
-                                                this.classList.add('opacity-50', 'cursor-not-allowed');
-                                            }
-                                        });
-                                }
-                            """
-                        ),
-                        
-                        # Container for buttons that will be added after generation
-                        Div(id="dynamic-buttons", cls="flex-grow"),
-                        
-                        # Clear All button
-                        Button(
-                            Div(
-                                Svg(
-                                    Path(d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z", fill="currentColor"),
-                                    viewBox="0 0 24 24", 
-                                    width="20", 
-                                    height="20"
-                                ),
-                                Span("Clear All", cls="ml-2"),
-                                cls="flex items-center justify-center w-full"
-                            ),
-                            id="clear-button",
-                            hx_post="/api/html5/clear-preview",
-                            hx_target="#preview-container",
-                            hx_trigger="click",
-                            hx_swap="innerHTML",
-                            cls="action-button bg-gradient-to-r from-gray-600 to-gray-500 hidden"),
-                        
-                        # Container for ZIP download link (initially empty)
-                        Div(id="zip-download-container", cls="mt-6 w-full"),
-                        
-                        id="editor-buttons",
-                        cls="mt-6 flex flex-wrap justify-between items-center gap-4"
-                    ),
-                  # Add this script tag right after your button container in the HTML
-
-                    Script("""
-                    // Direct ZIP button handler that activates as soon as possible
-                    (function() {
-                        // Function to handle the ZIP button click directly
-                        function handleZipButton() {
-                            const zipButton = document.getElementById('create-zip-button');
-                            if (zipButton && !zipButton._handled) {
-                                console.log("ZIP Button found - adding direct handler");
-                                
-                                // Add direct click handler
-                                zipButton.addEventListener('click', function(e) {
-                                    // Prevent default behavior to stop form submission
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    
-                                    console.log("ZIP button clicked directly");
-                                    
-                                    // Get the download container
-                                    const downloadContainer = document.getElementById('zip-download-container');
-                                    if (downloadContainer) {
-                                        downloadContainer.innerHTML = `
-                                            <div class="bg-gray-800 p-4 rounded border border-blue-500">
-                                                <h4 class="text-lg font-bold text-blue-400 mb-2">Creating ZIP Package...</h4>
-                                                <div class="flex items-center space-x-3">
-                                                    <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                                    <p>Preparing your download...</p>
-                                                </div>
-                                            </div>
-                                        `;
-                                        downloadContainer.classList.remove('hidden');
-                                    }
-                                    
-                                    // Get content from editors
-                                    const htmlContent = document.getElementById('html-editor')?.value || '';
-                                    const cssContent = document.getElementById('css-editor')?.value || '';
-                                    const jsContent = document.getElementById('js-editor')?.value || '';
-                                    
-                                    if (!htmlContent && !cssContent && !jsContent) {
-                                        if (downloadContainer) {
-                                            downloadContainer.innerHTML = `
-                                                <div class="bg-gray-800 p-4 rounded border border-amber-500">
-                                                    <h4 class="text-lg font-bold text-amber-400 mb-2">No Content Found</h4>
-                                                    <p>Please add some HTML, CSS, or JavaScript content first.</p>
-                                                </div>
-                                            `;
-                                        }
-                                        return;
-                                    }
-                                    
-                                    // Create form data
-                                    const formData = new FormData();
-                                    formData.append('html-editor', htmlContent);
-                                    formData.append('css-editor', cssContent);
-                                    formData.append('js-editor', jsContent);
-                                    
-                                    // Make the request
-                                    fetch('/api/html5/create-zip', {
-                                        method: 'POST',
-                                        body: formData
-                                    })
-                                    .then(response => response.text())
-                                    .then(html => {
-                                        if (downloadContainer) {
-                                            downloadContainer.innerHTML = html;
-                                            downloadContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                                        }
-                                    })
-                                    .catch(error => {
-                                        console.error('Error creating ZIP:', error);
-                                        if (downloadContainer) {
-                                            downloadContainer.innerHTML = `
-                                                <div class="bg-gray-800 p-4 rounded border border-red-500">
-                                                    <h4 class="text-lg font-bold text-red-500 mb-2">Error Creating ZIP</h4>
-                                                    <p class="mb-2">Error: ${error.message}</p>
-                                                    <button class="px-3 py-1 bg-blue-600 text-white rounded text-sm try-again-btn">
-                                                        Try Again
-                                                    </button>
-                                                </div>
-                                            `;
-                                            downloadContainer.querySelector('.try-again-btn')?.addEventListener('click', function() {
-                                                zipButton.click();
-                                            });
+                        id="undo-button",
+                        hx_post="/api/html5/undo",
+                        hx_target="#code-editors-container",
+                        hx_swap="innerHTML",
+                        disabled=True,
+                        cls="action-button bg-gradient-to-r from-blue-600 to-blue-500 hidden opacity-50 cursor-not-allowed",
+                        hx_trigger="click",
+                        hx_include="[id='html-editor'],[id='css-editor'],[id='js-editor']",
+                        hx_on_after_request="""
+                            if(event.detail.successful) {
+                                // Check if there's more history available
+                                fetch('/api/html5/check-history')
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if(data.hasHistory) {
+                                            this.disabled = false;
+                                            this.classList.remove('opacity-50', 'cursor-not-allowed');
+                                        } else {
+                                            this.disabled = true;
+                                            this.classList.add('opacity-50', 'cursor-not-allowed');
                                         }
                                     });
-                                    
-                                    // Return false to be extra sure we're preventing default behavior
-                                    return false;
-                                });
-                                
-                                // Mark button as handled
-                                zipButton._handled = true;
-                                
-                                // Make sure button is visible
-                                zipButton.classList.remove('hidden');
-                                console.log("ZIP Button is now visible and has direct handler");
                             }
-                        }
-                        
-                        // Try to handle the button immediately
-                        handleZipButton();
-                        
-                        // Also try after a delay in case the button isn't ready yet
-                        setTimeout(handleZipButton, 1000);
-                        
-                        // Also after code editors are loaded
-                        document.addEventListener('htmx:afterSwap', function(e) {
-                            if (e.detail.target.id === 'code-editors-container') {
-                                setTimeout(handleZipButton, 500);
-                            }
-                        });
-                        
-                        // Ensure button is visible after generate
-                        const generateButton = document.querySelector('button[type="submit"]');
-                        if (generateButton) {
-                            generateButton.addEventListener('click', function() {
-                                setTimeout(handleZipButton, 3000);
-                            });
-                        }
-                    })();
-                    """),
-        
+                        """
+                    ),
                     
-                    cls="mt-4"
+                    # Container for buttons that will be added after generation
+                    Div(id="dynamic-buttons", cls="flex-grow"),
+                    
+                    # Clear All button
+                    Button(
+                        Div(
+                            Svg(
+                                Path(d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z", fill="currentColor"),
+                                viewBox="0 0 24 24", 
+                                width="20", 
+                                height="20"
+                            ),
+                            Span("Clear All", cls="ml-2"),
+                            cls="flex items-center justify-center w-full"
+                        ),
+                        id="clear-button",
+                        hx_post="/api/html5/clear-preview",
+                        hx_target="#preview-container",
+                        hx_trigger="click",
+                        hx_swap="innerHTML",
+                        cls="action-button bg-gradient-to-r from-gray-600 to-gray-500 hidden"),
+                    
+                    # Container for ZIP download link (initially empty)
+                    Div(id="zip-download-container", cls="mt-6 w-full"),
+                    
+                    id="editor-buttons",
+                    cls="mt-6 flex flex-wrap justify-between items-center gap-4"
                 ),
-                id="html5-form",
-                enctype="multipart/form-data",
-                cls="space-y-4",
-              
+                
+                cls="mt-4"
             ),
+            
             cls="p-6"
         ),
         
@@ -759,14 +990,6 @@ def create_html5_form(api_key=None):
                 // Initialize TinyMCE
                 document.addEventListener('DOMContentLoaded', function() {
                     initRichTextEditor();
-                    
-                    // Ensure iterative mode is on by default
-                    const iterativeToggle = document.getElementById('iterative-toggle');
-                    if (iterativeToggle) {
-                        iterativeToggle.checked = true;
-                        updateIterativeBadge();
-                        console.log('Iterative mode initialized to ON by default');
-                    }
                 });
 
                 function initRichTextEditor() {
@@ -778,7 +1001,7 @@ def create_html5_form(api_key=None):
                         
                         tinymce.init({
                             selector: '#prompt',
-                            height: 250,
+                            height: 1000,
                             skin: 'oxide-dark',
                             content_css: 'dark',
                             plugins: 'autosave link image lists table code help wordcount',
@@ -872,9 +1095,6 @@ def create_html5_form(api_key=None):
                                 runButton.click();
                             }
                         }, 500);
-                        
-                        // Update iterative badge if needed
-                        updateIterativeBadge();
                     }
                     
                     // Additional check for ZIP button visibility after a delay
@@ -888,6 +1108,115 @@ def create_html5_form(api_key=None):
                     }, 1000);
                 });
 
+                // Main tab switching function
+                function switchMainTab(tabName, event) {
+                    // Prevent default behavior
+                    if (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    
+                    // Get all tabs and panels
+                    const tabs = document.querySelectorAll('.main-tab');
+                    const panels = document.querySelectorAll('.main-tab-panel');
+                    
+                    // Deactivate all tabs and panels
+                    tabs.forEach(tab => tab.classList.remove('active'));
+                    panels.forEach(panel => {
+                        panel.classList.remove('active');
+                        panel.style.display = 'none';
+                    });
+                    
+                    // Activate selected tab and panel
+                    document.getElementById(`${tabName}-tab`)?.classList.add('active');
+                    const selectedPanel = document.getElementById(`${tabName}-panel`);
+                    if (selectedPanel) {
+                        selectedPanel.classList.add('active');
+                        selectedPanel.style.display = 'block';
+                    }
+                    
+                    // If switching to iteration tab, populate the hidden fields with current editor content
+                    if (tabName === 'iteration') {
+                        updateRefinementFormWithCurrentCode();
+                    }
+                    
+                    console.log(`Switched to main tab: ${tabName}`);
+                    return false;
+                }
+                
+                // Function to update refinement form with current code
+                function updateRefinementFormWithCurrentCode() {
+                    const htmlEditor = document.getElementById('html-editor');
+                    const cssEditor = document.getElementById('css-editor');
+                    const jsEditor = document.getElementById('js-editor');
+                    
+                    const currentHtmlField = document.getElementById('current_html');
+                    const currentCssField = document.getElementById('current_css');
+                    const currentJsField = document.getElementById('current_js');
+                    
+                    if (htmlEditor && currentHtmlField) {
+                        currentHtmlField.value = htmlEditor.value || '';
+                        console.log('Updated current HTML field:', currentHtmlField.value.length, 'chars');
+                    }
+                    
+                    if (cssEditor && currentCssField) {
+                        currentCssField.value = cssEditor.value || '';
+                        console.log('Updated current CSS field:', currentCssField.value.length, 'chars');
+                    }
+                    
+                    if (jsEditor && currentJsField) {
+                        currentJsField.value = jsEditor.value || '';
+                        console.log('Updated current JS field:', currentJsField.value.length, 'chars');
+                    }
+                    
+                    // Debug the image uploaders in the iteration tab when switching
+                    console.log("Checking iteration tab image uploaders:");
+                    for (let i = 0; i < 5; i++) {
+                        const uploadInput = document.getElementById(`iter-image-upload-${i}`);
+                        const dataInput = document.getElementById(`iter-image-data-${i}`);
+                        const previewContainer = document.getElementById(`iter-preview-container-${i}`);
+                        
+                        console.log(`Uploader ${i}: upload input exists: ${!!uploadInput}, data input exists: ${!!dataInput}, preview container exists: ${!!previewContainer}`);
+                        
+                        // Ensure the iteration tab image uploaders are initialized correctly
+                        if (uploadInput && dataInput && previewContainer) {
+                            console.log(`Verifying event listeners for uploader ${i}`);
+                            
+                            // Ensure the event listener is attached
+                            const newListener = function(e) {
+                                console.log(`Image upload ${i} change event triggered`);
+                                const file = e.target.files[0];
+                                const container = document.getElementById(`iter-uploader-container-${i}`);
+                                
+                                if (file) {
+                                    const reader = new FileReader();
+                                    
+                                    reader.onload = function(e) {
+                                        // Show preview
+                                        previewContainer.innerHTML = `<img src="${e.target.result}" class="max-h-full max-w-full object-contain" />`;
+                                        previewContainer.classList.remove('hidden');
+                                        
+                                        // Store base64 data in the hidden input
+                                        const base64Data = e.target.result.split(',')[1];
+                                        dataInput.value = base64Data;
+                                        
+                                        // Add visual indication
+                                        if (container) container.classList.add('has-image');
+                                        
+                                        console.log(`Image ${i} uploaded and processed successfully`);
+                                    };
+                                    
+                                    reader.readAsDataURL(file);
+                                }
+                            };
+                            
+                            // Re-attach the event listener
+                            uploadInput.removeEventListener('change', newListener);
+                            uploadInput.addEventListener('change', newListener);
+                        }
+                    }
+                }
+                
                 // Debugging code to troubleshoot the ZIP button
                 document.addEventListener('DOMContentLoaded', function() {
                     console.log("DOM fully loaded");
@@ -930,6 +1259,8 @@ def create_html5_form(api_key=None):
 
                 // Function to create ZIP package via fetch API
                 function createZipPackage() {
+                    console.log("createZipPackage function called");
+                    
                     // Show loading indicator in the download container
                     const downloadContainer = document.getElementById('zip-download-container');
                     if (downloadContainer) {
@@ -950,6 +1281,8 @@ def create_html5_form(api_key=None):
                     const cssContent = document.getElementById('css-editor')?.value || '';
                     const jsContent = document.getElementById('js-editor')?.value || '';
                     
+                    console.log(`Editor content sizes - HTML: ${htmlContent.length}, CSS: ${cssContent.length}, JS: ${jsContent.length}`);
+                    
                     // Check for empty content
                     if (!htmlContent && !cssContent && !jsContent) {
                         if (downloadContainer) {
@@ -969,6 +1302,8 @@ def create_html5_form(api_key=None):
                     formData.append('css-editor', cssContent);
                     formData.append('js-editor', jsContent);
                     
+                    console.log("Sending form data to create-zip endpoint");
+                    
                     // Use fetch API with proper error handling
                     fetch('/api/html5/create-zip', {
                         method: 'POST',
@@ -976,11 +1311,14 @@ def create_html5_form(api_key=None):
                     })
                     .then(response => {
                         if (!response.ok) {
+                            console.error(`Server returned ${response.status}: ${response.statusText}`);
                             throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                         }
+                        console.log("Got successful response from server");
                         return response.text();
                     })
                     .then(html => {
+                        console.log("Received HTML response from server, updating container");
                         // Update the download container with the response
                         if (downloadContainer) {
                             downloadContainer.innerHTML = html;
@@ -988,11 +1326,24 @@ def create_html5_form(api_key=None):
                             // Scroll to the download section
                             downloadContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                             
-                            // Add focus/highlight effect
-                            downloadContainer.classList.add('animate-pulse');
+                            // Find and trigger the download link automatically 
                             setTimeout(() => {
-                                downloadContainer.classList.remove('animate-pulse');
-                            }, 1500);
+                                const downloadLink = downloadContainer.querySelector('a[download]');
+                                if (downloadLink) {
+                                    console.log("Triggering download automatically");
+                                    downloadLink.click();
+                                } else {
+                                    console.warn("Download link not found in the response");
+                                }
+                                
+                                // Add focus/highlight effect
+                                downloadContainer.classList.add('animate-pulse');
+                                setTimeout(() => {
+                                    downloadContainer.classList.remove('animate-pulse');
+                                }, 1500);
+                            }, 500);
+                        } else {
+                            console.error("Download container not found");
                         }
                     })
                     .catch(error => {
@@ -1019,200 +1370,13 @@ def create_html5_form(api_key=None):
                         }
                     });
                 }
-
-                // Function to update the iterative mode badge
-                function updateIterativeBadge() {
-                    const iterativeToggle = document.getElementById('iterative-toggle');
-                    const promptContainer = document.querySelector('.tox-edit-area') || document.getElementById('prompt')?.parentNode;
-                    const badge = document.getElementById('iterative-badge');
-                    
-                    if (!iterativeToggle || !promptContainer) return;
-                    
-                    // Remove existing badge if it exists
-                    if (badge) badge.remove();
-                    
-                    // Create new badge if toggle is checked
-                    if (iterativeToggle.checked) {
-                        const newBadge = document.createElement('div');
-                        newBadge.id = 'iterative-badge';
-                        newBadge.innerHTML = '<span class="pulse"></span> Iterative Mode Active';
-                        newBadge.className = 'px-3 py-1 bg-blue-600 text-white text-xs rounded-full absolute top-0 right-0 m-2 z-10 flex items-center gap-2';
-                        newBadge.style.zIndex = '9999';
-                        
-                        // Add to prompt container
-                        promptContainer.style.position = 'relative';
-                        promptContainer.appendChild(newBadge);
-                    }
-                    
-                    console.log("Iterative mode:", iterativeToggle.checked ? "ON" : "OFF");
-                }
-
-                // Modified DOM ready function for iterative mode
+                
+                // Initialize TinyMCE for the refinement prompt as well
                 document.addEventListener('DOMContentLoaded', function() {
-                    // Initialize the iterative badge
-                    updateIterativeBadge();
+                    initRichTextEditor();
+                    initRefinementEditor();
                     
-                    // Listen for toggle changes
-                    const iterativeToggle = document.getElementById('iterative-toggle');
-                    if (iterativeToggle && iterativeToggle.checked) {
-                        console.log("Iterative mode is ON - preparing editor content");
-                        
-                        // Get the code editors
-                        const htmlEditor = document.getElementById('html-editor');
-                        const cssEditor = document.getElementById('css-editor');
-                        const jsEditor = document.getElementById('js-editor');
-                        
-                        // Check if editors exist and have content
-                        if (htmlEditor || cssEditor || jsEditor) {
-                            console.log("Code editors found - adding content to form");
-                            
-                            // Create hidden inputs if they don't exist
-                            if (!document.getElementById('html-content-hidden')) {
-                                const htmlHidden = document.createElement('input');
-                                htmlHidden.type = 'hidden';
-                                htmlHidden.id = 'html-content-hidden';
-                                htmlHidden.name = 'html-content';
-                                htmlHidden.value = htmlEditor ? htmlEditor.value : '';
-                                this.appendChild(htmlHidden);
-                                console.log(`Added HTML content (${htmlHidden.value.length} chars)`);
-                            }
-                            
-                            if (!document.getElementById('css-content-hidden')) {
-                                const cssHidden = document.createElement('input');
-                                cssHidden.type = 'hidden';
-                                cssHidden.id = 'css-content-hidden';
-                                cssHidden.name = 'css-content';
-                                cssHidden.value = cssEditor ? cssEditor.value : '';
-                                this.appendChild(cssHidden);
-                                console.log(`Added CSS content (${cssHidden.value.length} chars)`);
-                            }
-                            
-                            if (!document.getElementById('js-content-hidden')) {
-                                const jsHidden = document.createElement('input');
-                                jsHidden.type = 'hidden';
-                                jsHidden.id = 'js-content-hidden';
-                                jsHidden.name = 'js-content';
-                                jsHidden.value = jsEditor ? jsEditor.value : '';
-                                this.appendChild(jsHidden);
-                                console.log(`Added JS content (${jsHidden.value.length} chars)`);
-                            }
-                        } else {
-                            console.log("Code editors not found");
-                        }
-                    }
-                });
-
-                // SIMPLIFIED FORM SUBMISSION FOR ITERATIVE MODE
-                document.getElementById('html5-form')?.addEventListener('submit', function(e) {
-                    // Skip the default HTMX handling
-                    // e.preventDefault();
-                    
-                    const iterativeToggle = document.getElementById('iterative-toggle');
-                    if (!iterativeToggle || !iterativeToggle.checked) {
-                        console.log("Not in iterative mode, using original prompt");
-                        return; // Continue with normal submission
-                    }
-                    
-                    console.log("Preparing iterative mode submission");
-                    
-                    // Get the session content from the editors if they exist
-                    const htmlEditor = document.getElementById('html-editor');
-                    const cssEditor = document.getElementById('css-editor');
-                    const jsEditor = document.getElementById('js-editor');
-                    
-                    if (!(htmlEditor && cssEditor && jsEditor)) {
-                        console.log("Editors not found, skipping iterative mode");
-                        return; // Continue with normal submission
-                    }
-                    
-                    // Check if any editor has content
-                    if (!(htmlEditor.value || cssEditor.value || jsEditor.value)) {
-                        console.log("No code to iterate on, skipping iterative mode");
-                        return; // Continue with normal submission
-                    }
-                    
-                    // Get the editor content
-                    let editor = tinymce.get('prompt');
-                    let promptContent = '';
-                    
-                    if (editor) {
-                        promptContent = editor.getContent();
-                    } else {
-                        const promptElement = document.getElementById('prompt');
-                        if (promptElement) promptContent = promptElement.value;
-                    }
-                    
-                    // Add banner that will appear in the prompt
-                    const iterativeBanner = `
-                    <div style="padding: 10px; background-color: #4a90e2; color: white; margin-bottom: 10px; border-radius: 5px;">
-                        <strong>ITERATIVE MODE:</strong> You are modifying existing code. Previous code is included below.
-                    </div>
-                    `;
-                    
-                    // Append code to prompt with the banner
-                    let newContent = iterativeBanner + promptContent + '\n\n';
-                    newContent += '<hr>\n';
-                    newContent += '<h3>Current code for iteration:</h3>\n\n';
-                    
-                    // Add the code blocks for HTML, CSS, and JS
-                    if (htmlEditor.value) {
-                        newContent += '<pre><code class="language-html">\n' + htmlEditor.value + '\n</code></pre>\n\n';
-                    }
-                    
-                    if (cssEditor.value) {
-                        newContent += '<pre><code class="language-css">\n' + cssEditor.value + '\n</code></pre>\n\n';
-                    }
-                    
-                    if (jsEditor.value) {
-                        newContent += '<pre><code class="language-javascript">\n' + jsEditor.value + '\n</code></pre>\n\n';
-                    }
-                    
-                    newContent += '<hr>\n';
-                    newContent += '<p>Please improve the above code based on my instructions. Maintain the same structure with HTML, CSS, and JavaScript sections.</p>';
-                    
-                    console.log("Setting iterative prompt content");
-                    
-                    // Set the content back to the editor
-                    if (editor) {
-                        editor.setContent(newContent);
-                    } else if (promptElement) {
-                        promptElement.value = newContent;
-                    }
-                    
-                    // Add a debug message to the console
-                    console.log("Iterative mode enabled: Sending existing code for iteration");
-                });
-
-                // Update system prompt to handle iterative mode
-                function updateSystemPrompt(systemPrompt, isIterative) {
-                    if (!isIterative) return systemPrompt;
-                    
-                    // Add instructions for iterative mode
-                    return systemPrompt + `
-                    
-                    ITERATIVE MODE INSTRUCTIONS:
-                    - You are modifying existing HTML, CSS, and JavaScript code.
-                    - The user has provided the current code in the prompt.
-                    - Maintain the same overall structure while making improvements.
-                    - Focus on addressing the specific requests in the user's instructions.
-                    - Return the complete improved code with all three components properly wrapped.
-                    `;
-                }
-
-                // Clear button should reset iterative mode
-                document.addEventListener('click', function(e) {
-                    if (e.target && e.target.id === 'clear-button') {
-                        const iterativeToggle = document.getElementById('iterative-toggle');
-                        if (iterativeToggle) {
-                            iterativeToggle.checked = false;
-                            updateIterativeBadge();
-                        }
-                    }
-                });
-
-                // Fixed ZIP button click handler
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Add direct handler to the ZIP button when it's available
+                    // Fixed ZIP button click handler
                     setTimeout(function() {
                         const zipButton = document.getElementById('create-zip-button');
                         if (zipButton) {
@@ -1232,7 +1396,32 @@ def create_html5_form(api_key=None):
                         }
                     }, 2000); // Wait 2 seconds for the button to be available
                 });
-
+                
+                function initRefinementEditor() {
+                    // Check if TinyMCE exists
+                    if (typeof tinymce !== 'undefined') {
+                        if (tinymce.get('refinement_prompt')) {
+                            tinymce.get('refinement_prompt').remove();
+                        }
+                        
+                        tinymce.init({
+                            selector: '#refinement_prompt',
+                            height: 500,
+                            skin: 'oxide-dark',
+                            content_css: 'dark',
+                            plugins: 'autosave link image lists table code help wordcount',
+                            toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | code',
+                            menubar: 'file edit view insert format tools help',
+                            placeholder: 'Describe how you want to refine the current HTML5 content...',
+                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#e0e0e0; }'
+                        });
+                    } else {
+                        console.warn('TinyMCE not loaded for refinement editor');
+                        // Fallback - just show the textarea
+                        document.getElementById('refinement_prompt').style.display = 'block';
+                    }
+                }
+                
                 // Improved switchTab function that properly handles events
                 window.switchTab = function(tabName, event) {
                     // If event is provided, prevent default behavior
@@ -1269,19 +1458,56 @@ def create_html5_form(api_key=None):
                     // Return false to ensure the event doesn't bubble up
                     return false;
                 };
-
-                // Update onclick handlers to properly pass the event
+                
+                // Add event listener for the refinement form submission
                 document.addEventListener('DOMContentLoaded', function() {
-                    // Find all tab buttons and update their onclick
-                    const tabButtons = document.querySelectorAll('.tab');
-                    tabButtons.forEach(button => {
-                        const tabName = button.id.replace('-tab', '');
-                        button.onclick = function(e) {
-                            return switchTab(tabName, e);
-                        };
-                    });
+                    const refinementForm = document.getElementById('refinement-form');
+                    
+                    if (refinementForm) {
+                        refinementForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            
+                            // First update the hidden fields with current code
+                            updateRefinementFormWithCurrentCode();
+                            
+                            // Show loading indicator
+                            document.getElementById('loading-indicator').style.display = 'block';
+                            
+                            // Create FormData object for proper file handling
+                            const formData = new FormData(refinementForm);
+                            
+                            // Use fetch API for the request
+                            fetch('/api/html5/refine-code', {
+                                method: 'POST',
+                                body: formData,
+                            })
+                            .then(response => response.text())
+                            .then(html => {
+                                // Update the code editors container
+                                document.getElementById('code-editors-container').innerHTML = html;
+                                
+                                // Hide loading indicator
+                                document.getElementById('loading-indicator').style.display = 'none';
+                                
+                                // Trigger HTMX afterSwap event for compatibility
+                                const event = new CustomEvent('htmx:afterSwap', {
+                                    detail: { target: document.getElementById('code-editors-container') }
+                                });
+                                document.dispatchEvent(event);
+                                
+                                // Switch back to the editors view after refinement
+                                switchMainTab('generation', null);
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                document.getElementById('loading-indicator').style.display = 'none';
+                                document.getElementById('code-editors-container').innerHTML = 
+                                    '<div class="error alert alert-danger">Error: ' + error.message + '</div>';
+                            });
+                        });
+                    }
                 });
-
+                
                 // Update the JavaScript to handle undo button state
                 function updateUndoButtonState() {
                     const undoButton = document.getElementById('undo-button');
@@ -1312,6 +1538,30 @@ def create_html5_form(api_key=None):
                 document.addEventListener('DOMContentLoaded', function() {
                     updateUndoButtonState();
                 });
+
+                // Add a create ZIP button after generation
+                const dynamicButtonsContainer = document.getElementById('dynamic-buttons');
+                if (dynamicButtonsContainer) {
+                    // Create a ZIP button
+                    const zipButton = document.createElement('button');
+                    zipButton.id = 'create-zip-button';
+                    zipButton.innerHTML = `
+                        <div class="flex items-center justify-center w-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                <path d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-2v2H9V4h6zM4 8h16v3H4V8zm0 11v-6h16v6H4z"/>
+                            </svg>
+                            <span class="ml-2">Create ZIP</span>
+                        </div>`;
+                    zipButton.className = 'action-button bg-gradient-to-r from-indigo-600 to-indigo-500';
+                    // Add explicit onclick handler to call createZipPackage function directly
+                    zipButton.onclick = function(e) {
+                        e.preventDefault();
+                        console.log("ZIP button clicked with direct onclick handler");
+                        createZipPackage();
+                        return false;
+                    };
+                    dynamicButtonsContainer.appendChild(zipButton);
+                }
         """)
     )
     

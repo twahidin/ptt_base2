@@ -177,12 +177,12 @@ def get(req):
         
 def create_side_menu(active_menu=None):
     menu_items = [
-        ("menuA", "Leonardo AI Generator"),
-        ("menuB", "Stability AI Generator"),
-        ("menuC", "Stability AI Video Generator"),
-        ("menuD", "HTML 5 Generator"),
+        #("menuA", "Leonardo AI Generator"),
+        #("menuB", "Stability AI Generator"),
+        #("menuC", "Stability AI Video Generator"),
+        ("menuD", "HTML 5 Generator")
         #("menuE", "Lea Chatbot"),
-        ("tokens", "Token Usage Monitoring"),
+        #("tokens", "Token Usage Monitoring"),
     ]
     
     return Ul(*[
