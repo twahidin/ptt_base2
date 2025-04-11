@@ -742,11 +742,11 @@ def create_html5_form(api_key=None):
                        type="button", 
                        cls="main-tab active", 
                        onclick="switchMainTab('generation', event)"),
-                Button("Iteration", 
-                       id="iteration-tab", 
+                Button("Refinement", 
+                       id="refinement-tab", 
                        type="button", 
                        cls="main-tab", 
-                       onclick="switchMainTab('iteration', event)"),
+                       onclick="switchMainTab('refinement', event)"),
                 cls="main-tab-header"
             ),
             
@@ -850,18 +850,123 @@ def create_html5_form(api_key=None):
                         cls="mb-4"
                     ),
                     
+                    # Help section for refinement
+                    Div(
+                        Details(
+                            Summary(
+                                Div(
+                                    "How to Use Refinement (Click to Expand)",
+                                    Svg(
+                                        Path(d="M19 9l-7 7-7-7", stroke="currentColor", stroke_width="2", fill="none"),
+                                        viewBox="0 0 24 24", 
+                                        width="16", 
+                                        height="16",
+                                        cls="ml-2"
+                                    ),
+                                    cls="flex items-center"
+                                ),
+                                cls="cursor-pointer font-semibold text-blue-400 hover:text-blue-300 border-2 border-blue-400 p-2 rounded hover:bg-gray-800 flex items-center justify-between w-full"
+                            ),
+                            Div(
+                                H4("Effective Refinement Tips:", cls="text-blue-300 text-lg mt-2 mb-3"),
+                                Ul(
+                                    Li("Focus on one change at a time for best results", cls="mb-2"),
+                                    Li("Use the 'Undo' button if you don't like a result", cls="mb-2"),
+                                    Li("Create a ZIP download after each satisfactory iteration", cls="mb-2"),
+                                    Li("Be specific about what to change and what to keep the same", cls="mb-2"),
+                                    Li("Use the 'Example Refinements' button in the toolbar for templates", cls="mb-2"),
+                                    cls="list-disc ml-6 text-gray-300"
+                                ),
+                                H4("Example Scenarios:", cls="text-blue-300 text-lg mt-4 mb-3"),
+                                Div(
+                                    Pre("Add a new variable called x in the drop down list and keep the rest of the code the same", 
+                                        cls="bg-gray-900 p-2 rounded text-sm mb-2"),
+                                    Pre("Change the font of the text to black in the table and keep the rest of the code the same", 
+                                        cls="bg-gray-900 p-2 rounded text-sm mb-2"),
+                                    Pre("Remove the object [name] from the simulation and adjust the necessary code", 
+                                        cls="bg-gray-900 p-2 rounded text-sm mb-2"),
+                                    Pre("Create an object [name] that can [behavior] and adjust the necessary code", 
+                                        cls="bg-gray-900 p-2 rounded text-sm"),
+                                    cls="mb-3"
+                                ),
+                                cls="p-3 bg-gray-800 rounded-b"
+                            ),
+                            cls="mb-4 border border-gray-600 rounded"
+                        ),
+                        cls="mb-4"
+                    ),
+                    
                     # Rich Text Editor for refinement prompt (half the height)
                     Div(
-                        Label("Refinement Instructions:", cls="block mb-2 text-blue-400"),
+                        # Removed Refinement Instructions label
+                        
+                        # Fallback refinement examples toolbar
+                        Div(
+                            # Removed Example Refinements text
+                            Div(
+                                Button("Add Variable", 
+                                      type="button",
+                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                      onclick="insertRefinementExample('Add a new variable called x in the drop down list and keep the rest of the code the same')"),
+                                Button("Change Style", 
+                                      type="button",
+                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                      onclick="insertRefinementExample('Change the font of the text to black in the table and keep the rest of the code the same')"),
+                                Button("Remove Element", 
+                                      type="button",
+                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                      onclick="insertRefinementExample('Remove the object [object name] from the simulation and adjust the necessary code while keeping the rest of the code intact')"),
+                                Button("Create Object", 
+                                      type="button",
+                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                      onclick="insertRefinementExample('Create an object [object name] so that the object can [describe behavior] and adjust the necessary code while keeping the rest of the code intact')"),
+                                Button("Clear All", 
+                                      type="button",
+                                      cls="px-2 py-1 bg-red-700 text-white text-xs rounded mb-1 hover:bg-red-600",
+                                      onclick="document.getElementById('refinement_prompt').value = ''"),
+                                cls="flex flex-wrap"
+                            ),
+                            cls="mb-3 p-2 border border-gray-700 rounded bg-gray-800"
+                        ),
+                        
                         # Basic textarea for initial render and as fallback
                         Textarea("", 
                               id='refinement_prompt', 
                               name='prompt', 
                               placeholder='Describe how you want to refine the current HTML5 content...',
                               rows=16,
-                              cls="w-full p-2 border rounded border-blue-500 bg-gray-800"),
+                              cls="w-full p-3 border-2 rounded border-blue-500 bg-gray-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-400 focus:outline-none text-white font-medium"),
                         cls="mb-4"
                     ),
+                    
+                    # Add script for fallback buttons 
+                    Script("""
+                    function insertRefinementExample(text) {
+                        // Try TinyMCE first
+                        if (typeof tinymce !== 'undefined' && tinymce.get('refinement_prompt')) {
+                            tinymce.get('refinement_prompt').insertContent(text);
+                            tinymce.get('refinement_prompt').focus();
+                        } else {
+                            // Fallback to regular textarea
+                            const textarea = document.getElementById('refinement_prompt');
+                            if (textarea) {
+                                // Get cursor position or end of text
+                                const start = textarea.selectionStart || 0;
+                                const end = textarea.selectionEnd || 0;
+                                const currentValue = textarea.value || '';
+                                
+                                // Insert text at cursor position
+                                textarea.value = currentValue.substring(0, start) + text + currentValue.substring(end);
+                                
+                                // Set cursor position after inserted text
+                                textarea.selectionStart = textarea.selectionEnd = start + text.length;
+                                
+                                // Focus the textarea
+                                textarea.focus();
+                            }
+                        }
+                    }
+                    """),
                     
                     # File upload section - simplified to basic file inputs
                     Div(
@@ -886,7 +991,7 @@ def create_html5_form(api_key=None):
                     enctype="multipart/form-data",
                     cls="space-y-4",
                 ),
-                id="iteration-panel",
+                id="refinement-panel",
                 cls="main-tab-panel"
             ),
             
@@ -1136,7 +1241,7 @@ def create_html5_form(api_key=None):
                     }
                     
                     // If switching to iteration tab, populate the hidden fields with current editor content
-                    if (tabName === 'iteration') {
+                    if (tabName === 'refinement') {
                         updateRefinementFormWithCurrentCode();
                     }
                     
@@ -1374,7 +1479,6 @@ def create_html5_form(api_key=None):
                 // Initialize TinyMCE for the refinement prompt as well
                 document.addEventListener('DOMContentLoaded', function() {
                     initRichTextEditor();
-                    initRefinementEditor();
                     
                     // Fixed ZIP button click handler
                     setTimeout(function() {
@@ -1404,6 +1508,26 @@ def create_html5_form(api_key=None):
                             tinymce.get('refinement_prompt').remove();
                         }
                         
+                        // Example refinement prompts
+                        const examplePrompts = [
+                            {
+                                title: "Add Variable",
+                                text: "Add a new variable called x in the drop down list and keep the rest of the code the same"
+                            },
+                            {
+                                title: "Change Style",
+                                text: "Change the font of the text to black in the table and keep the rest of the code the same"
+                            },
+                            {
+                                title: "Remove Element",
+                                text: "Remove the object [object name] from the simulation and adjust the necessary code while keeping the rest of the code intact"
+                            },
+                            {
+                                title: "Create Object",
+                                text: "Create an object [object name] so that the object can [describe behavior] and adjust the necessary code while keeping the rest of the code intact"
+                            }
+                        ];
+                        
                         tinymce.init({
                             selector: '#refinement_prompt',
                             height: 500,
@@ -1413,7 +1537,38 @@ def create_html5_form(api_key=None):
                             toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | code',
                             menubar: 'file edit view insert format tools help',
                             placeholder: 'Describe how you want to refine the current HTML5 content...',
-                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#e0e0e0; }'
+                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#e0e0e0; }',
+                            setup: function(editor) {
+                                // Add a custom dropdown for example prompts
+                                editor.ui.registry.addMenuButton('examplePrompts', {
+                                    text: 'Example Refinements',
+                                    tooltip: 'Insert an example refinement prompt',
+                                    fetch: function(callback) {
+                                        const items = examplePrompts.map((prompt, index) => {
+                                            return {
+                                                type: 'menuitem',
+                                                text: prompt.title,
+                                                onAction: function() {
+                                                    editor.insertContent(prompt.text);
+                                                }
+                                            };
+                                        });
+                                        
+                                        // Add the general hint as the first item
+                                        items.unshift({
+                                            type: 'menuitem',
+                                            text: 'General Hint',
+                                            onAction: function() {
+                                                editor.insertContent("Hint: During the iteration process, focus on one instruction at a time, click undo if the results are not to your liking and repeat until you are satisfied. Remember to save the version that you like along the way.");
+                                            }
+                                        });
+                                        
+                                        callback(items);
+                                    }
+                                });
+                            },
+                            toolbar_items_size: 'small',
+                            toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | code | examplePrompts'
                         });
                     } else {
                         console.warn('TinyMCE not loaded for refinement editor');
