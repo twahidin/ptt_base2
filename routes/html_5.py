@@ -23,6 +23,10 @@ load_dotenv()
 # This will store history by user ID to handle multiple users
 GLOBAL_HISTORY = {}
 
+# New simplified global storage for current and previous states
+# Format: { user_id: { 'current': { 'html': '...', 'css': '...', 'js': '...' }, 'previous': { 'html': '...', 'css': '...', 'js': '...' } } }
+GLOBAL_CODE_STORAGE = {}
+
 #try and load the environment variables
 if os.getenv("OPENAI_API_KEY") is None:
     os.environ["OPENAI_API_KEY"] = ""
@@ -194,7 +198,7 @@ def extract_components(code):
 
 def create_zip_file(html, css, js):
     """
-        Create a ZIP file with index.html containing the HTML5 content
+        Create a ZIP file with separate files for HTML, CSS, and JavaScript
         
         Args:
             html (str): HTML content
@@ -204,22 +208,18 @@ def create_zip_file(html, css, js):
         Returns:
             bytes: The ZIP file content as bytes
         """
-        # Create a complete HTML document
+    # Create a complete HTML document that references external CSS and JS files
     html_content = f"""<!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>HTML5 Interactive Content</title>
-        <style>
-    {css}
-        </style>
+        <link rel="stylesheet" href="styles.css">
     </head>
     <body>
     {html}
-        <script>
-    {js}
-        </script>
+        <script src="script.js"></script>
     </body>
     </html>"""
 
@@ -227,13 +227,20 @@ def create_zip_file(html, css, js):
     zip_buffer = io.BytesIO()
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        # Add index.html to the ZIP
+        # Add separate files to the ZIP
         zip_file.writestr('index.html', html_content)
+        zip_file.writestr('styles.css', css)
+        zip_file.writestr('script.js', js)
         
         # Add a README.txt file with information
         readme_content = """HTML5 Interactive Content for SLS
 
-        This ZIP file contains a self-contained HTML5 interactive content that:
+        This ZIP file contains HTML5 interactive content with:
+        1. index.html - The main HTML document
+        2. styles.css - CSS styles
+        3. script.js - JavaScript code for interactivity
+        
+        This content:
         1. Works without requiring an internet connection
         2. Scales proportionally within an iframe or browser window
         3. Uses only included libraries (no external dependencies)
@@ -405,166 +412,34 @@ def routes(rt):
         """Initialize the HTML5 form and session"""
         api_key = os.getenv("OPENAI_API_KEY")
         
-        # Initialize session if needed
-        if 'html5_history' not in req.session:
-            req.session['html5_history'] = []
-            print("Initialized empty history in session")
+        # Get user ID for storage
+        user_id = req.session.get('auth', 'anonymous')
         
-        # Debug print session state
+        # Initialize simplified storage if needed
+        if user_id not in GLOBAL_CODE_STORAGE:
+            GLOBAL_CODE_STORAGE[user_id] = {}
+            print(f"Initialized empty storage for user {user_id}")
+        
+        # Debug print storage state
         print("\n----- MENU D DEBUG -----")
         print(f"Session keys: {list(req.session.keys())}")
-        print(f"History size: {len(req.session.get('html5_history', []))}")
+        if user_id in GLOBAL_CODE_STORAGE:
+            has_current = 'current' in GLOBAL_CODE_STORAGE[user_id]
+            has_previous = 'previous' in GLOBAL_CODE_STORAGE[user_id]
+            print(f"Storage state: has_current={has_current}, has_previous={has_previous}")
         
         return Titled("HTML5 Project",
             Link(rel="stylesheet", href="static/css/styles.css"),
             create_html5_form(api_key)
         )
 
-    @rt('/api/html5/undo')
-    async def post(req):
-        """Restore the previous state of the HTML5 content"""
-        try:
-            # Get user ID from session for history tracking
-            user_id = req.session.get('auth', 'anonymous')
-            
-            # Get a copy of the history to avoid reference issues
-            history = list(req.session.get('html5_history', []))
-            
-            # If session history is empty but we have global history, use that
-            if not history and user_id in GLOBAL_HISTORY:
-                history = GLOBAL_HISTORY[user_id]
-                print(f"Retrieved history from global backup. Size: {len(history)}")
-            
-            print("\n----- UNDO DEBUG -----")
-            print(f"Session keys: {list(req.session.keys())}")
-            print(f"History size before undo: {len(history)}")
-            print(f"Global history size for user {user_id}: {len(GLOBAL_HISTORY.get(user_id, []))}")
-            
-            if not history:
-                print("No history available to restore")
-                return Div(
-                    "No previous state available to restore",
-                    cls="bg-gray-800 p-4 rounded border border-amber-500"
-                )
-            
-            # Get the last state from history
-            previous_state = history.pop()
-            print("Restoring previous state:")
-            print(f"  HTML length: {len(previous_state['html'])}")
-            print(f"  CSS length: {len(previous_state['css'])}")
-            print(f"  JS length: {len(previous_state['js'])}")
-            
-            # Update session with the new history and current state
-            req.session['html5_history'] = list(history)  # Store a new copy
-            req.session['html'] = previous_state['html']
-            req.session['css'] = previous_state['css']
-            req.session['js'] = previous_state['js']
-            
-            # Also update global backup
-            GLOBAL_HISTORY[user_id] = list(history)
-            
-            print(f"History size after undo: {len(history)}")
-            print(f"Updated session keys: {list(req.session.keys())}")
-            print(f"Updated global history size: {len(GLOBAL_HISTORY.get(user_id, []))}")
-
-            # Create preview content with the restored state
-            preview_content = f"""<!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                body {{
-                    background-color: #121212;
-                    color: #ffffff;
-                    margin: 0;
-                    padding: 0;
-                    font-family: Arial, sans-serif;
-                    min-height: 100vh;
-                    display: flex;
-                    flex-direction: column;
-                }}
-                /* User CSS */
-                {previous_state['css']}
-                </style>
-            </head>
-            <body>
-                <div id="content-container">
-                    {previous_state['html']}
-                </div>
-                <script>
-                // Initialize content and catch errors
-                try {{
-                    {previous_state['js']}
-                }} catch (error) {{
-                    console.error('Error in JavaScript execution:', error);
-                    const errorDiv = document.createElement('div');
-                    errorDiv.style.color = 'red';
-                    errorDiv.style.padding = '10px';
-                    errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
-                    document.body.appendChild(errorDiv);
-                }}
-                </script>
-            </body>
-            </html>"""
-            
-            # Encode the content as base64
-            encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
-            
-            return [
-                create_code_editors(previous_state['html'], previous_state['css'], previous_state['js']),
-                NotStr(f"""
-                <script>
-                (function() {{
-                    // Update the preview with the restored state
-                    document.getElementById('preview-container').innerHTML = `
-                        <iframe 
-                            src="data:text/html;base64,{encoded_content}" 
-                            width="100%" height="100%" 
-                            frameborder="0" 
-                            allowfullscreen="true" 
-                            style="background-color: #121212; display: block;">
-                        </iframe>
-                    `;
-                    
-                    // Update undo button state
-                    const undoButton = document.getElementById('undo-button');
-                    if (undoButton) {{
-                        // Check if there's more history available
-                        fetch('/api/html5/check-history')
-                            .then(response => response.json())
-                            .then(data => {{
-                                if (data.hasHistory) {{
-                                    undoButton.disabled = false;
-                                    undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                                }} else {{
-                                    undoButton.disabled = true;
-                                    undoButton.classList.add('opacity-50', 'cursor-not-allowed');
-                                }}
-                            }});
-                    }}
-                }})();
-                </script>
-                """)
-            ]
-            
-        except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            return Div(
-                H3("Error Restoring Previous State", cls="text-xl font-bold text-red-600 mb-4"),
-                P(f"Error: {str(e)}", cls="mb-2"),
-                details := Details(
-                    Summary("View Error Details", cls="cursor-pointer text-blue-500"),
-                    Pre(error_details, cls="mt-2 p-4 bg-gray-100 overflow-auto text-xs")
-                ),
-                cls="error alert alert-danger p-4"
-            )
-
     @rt('/api/html5/preview')
     async def post(req):
         """Generate an interactive preview using the code from the editors"""
         try:
+            # Get user ID for storage
+            user_id = req.session.get('auth', 'anonymous')
+            
             # Get form data
             form = await req.form()
             html = form.get('html-editor', '')
@@ -582,7 +457,35 @@ def routes(rt):
             print(f"Preview CSS Length: {len(css)}")
             print(f"Preview JS Length: {len(js)}")
             
-            # Save to session
+            # Check if we need to save the previous state
+            if user_id in GLOBAL_CODE_STORAGE and 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                # Only save previous if content actually changed
+                current = GLOBAL_CODE_STORAGE[user_id]['current']
+                current_html = current.get('html', '')
+                current_css = current.get('css', '')
+                current_js = current.get('js', '')
+                
+                # Check if content has changed before saving
+                if (html != current_html or css != current_css or js != current_js):
+                    print(f"\n----- PREVIEW SAVING PREVIOUS STATE -----")
+                    print(f"Saving previous content for user {user_id}")
+                    print(f"Current content being saved as previous - HTML: {len(current_html)}, CSS: {len(current_css)}, JS: {len(current_js)}")
+                    GLOBAL_CODE_STORAGE[user_id]['previous'] = dict(GLOBAL_CODE_STORAGE[user_id]['current'])
+                else:
+                    print(f"Content unchanged, not updating previous state")
+            
+            # Initialize user storage if not exists
+            if user_id not in GLOBAL_CODE_STORAGE:
+                GLOBAL_CODE_STORAGE[user_id] = {}
+            
+            # Update current state
+            GLOBAL_CODE_STORAGE[user_id]['current'] = {
+                'html': html,
+                'css': css,
+                'js': js
+            }
+            
+            # Save to session as well for compatibility
             req.session['html'] = html
             req.session['css'] = css
             req.session['js'] = js
@@ -681,7 +584,12 @@ def routes(rt):
         if 'html5_history' in req.session:
             del req.session['html5_history']
         
-        # Clear global history for this user
+        # Clear simplified storage for this user
+        if user_id in GLOBAL_CODE_STORAGE:
+            del GLOBAL_CODE_STORAGE[user_id]
+            print(f"Cleared global code storage for user {user_id}")
+        
+        # Clear old history for backward compatibility
         if user_id in GLOBAL_HISTORY:
             del GLOBAL_HISTORY[user_id]
             print(f"Cleared global history for user {user_id}")
@@ -702,17 +610,13 @@ def routes(rt):
             // Hide and reset all buttons
             var runButton = document.getElementById('run-preview-button');
             var clearButton = document.getElementById('clear-button');
-            var undoButton = document.getElementById('undo-button');
             var zipButton = document.getElementById('create-zip-button');
+            var previousButton = document.getElementById('previous-interactive-button');
             
             if (runButton) runButton.classList.add('hidden');
             if (clearButton) clearButton.classList.add('hidden');
-            if (undoButton) {
-                undoButton.classList.add('hidden');
-                undoButton.disabled = true;
-                undoButton.classList.add('opacity-50', 'cursor-not-allowed');
-            }
             if (zipButton) zipButton.classList.add('hidden');
+            if (previousButton) previousButton.classList.add('hidden');
             
             // Clear HTML5 Prompt text area but preserve iterative mode setting
             if (typeof tinymce !== 'undefined' && tinymce.get('prompt')) {
@@ -734,6 +638,122 @@ def routes(rt):
         
         return NotStr(clean_preview_html)
 
+    @rt('/api/html5/load-previous')
+    async def post(req):
+        """Load the previous interactive content from global storage"""
+        # Get user ID from session for storage
+        user_id = req.session.get('auth', 'anonymous')
+        
+        print(f"\n----- LOAD PREVIOUS DEBUG -----")
+        print(f"Loading previous content for user {user_id}")
+        
+        # Debug global storage state
+        if user_id in GLOBAL_CODE_STORAGE:
+            print(f"GLOBAL_CODE_STORAGE keys for user {user_id}: {GLOBAL_CODE_STORAGE[user_id].keys()}")
+            if 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                current = GLOBAL_CODE_STORAGE[user_id]['current']
+                print(f"Current content sizes - HTML: {len(current.get('html', ''))}, CSS: {len(current.get('css', ''))}, JS: {len(current.get('js', ''))}")
+            if 'previous' in GLOBAL_CODE_STORAGE[user_id]:
+                previous = GLOBAL_CODE_STORAGE[user_id]['previous']
+                print(f"Previous content sizes - HTML: {len(previous.get('html', ''))}, CSS: {len(previous.get('css', ''))}, JS: {len(previous.get('js', ''))}")
+                # Debug first 100 chars of each component
+                print(f"Previous HTML preview: {previous.get('html', '')[:100]}...")
+                print(f"Previous CSS preview: {previous.get('css', '')[:100]}...")
+                print(f"Previous JS preview: {previous.get('js', '')[:100]}...")
+        else:
+            print(f"No storage found for user {user_id}")
+        
+        # Check if user has previous content
+        if user_id in GLOBAL_CODE_STORAGE and 'previous' in GLOBAL_CODE_STORAGE[user_id]:
+            # Get previous content
+            previous = GLOBAL_CODE_STORAGE[user_id]['previous']
+            html = previous.get('html', '')
+            css = previous.get('css', '')
+            js = previous.get('js', '')
+            
+            # Check if previous content is different from current content
+            is_different = True
+            if 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                current = GLOBAL_CODE_STORAGE[user_id]['current']
+                current_html = current.get('html', '')
+                current_css = current.get('css', '')
+                current_js = current.get('js', '')
+                
+                if html == current_html and css == current_css and js == current_js:
+                    is_different = False
+                    print("Previous content is identical to current content")
+            
+            if not is_different:
+                return Div(
+                    Div(
+                        Svg(
+                            Path(d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z", fill="currentColor"),
+                            viewBox="0 0 24 24", 
+                            width="24", 
+                            height="24",
+                            cls="inline-block mr-2"
+                        ),
+                        Span("No different previous version available", cls="align-middle"),
+                        cls="flex items-center"
+                    ),
+                    P("The previous version is identical to your current version. Make changes to create a new version.", cls="mt-2 text-sm"),
+                    cls="bg-amber-900 text-amber-100 p-4 rounded mb-4 border border-amber-700"
+                )
+            
+            print(f"Previous content found - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+            
+            # Update session data
+            req.session['html'] = html
+            req.session['css'] = css
+            req.session['js'] = js
+            
+            # Create code editors with previous content
+            return [
+                Div(
+                    "Loaded Previous Interactive Content",
+                    cls="bg-blue-900 text-blue-100 p-2 rounded mb-4"
+                ),
+                create_code_editors(html, css, js),
+                NotStr(f"""
+                <script>
+                    // Show buttons
+                    const runButton = document.getElementById('run-preview-button');
+                    const clearButton = document.getElementById('clear-button');
+                    const zipButton = document.getElementById('create-zip-button');
+                    const previousButton = document.getElementById('previous-interactive-button');
+                    
+                    if (runButton) runButton.classList.remove('hidden');
+                    if (clearButton) clearButton.classList.remove('hidden');
+                    if (zipButton) zipButton.classList.remove('hidden');
+                    if (previousButton) previousButton.classList.remove('hidden');
+                    
+                    // Auto-trigger preview
+                    setTimeout(function() {{
+                        if (runButton) {{
+                            runButton.click();
+                        }}
+                    }}, 300);
+                </script>
+                """)
+            ]
+        else:
+            # No previous content found
+            print(f"No previous content found for user {user_id}")
+            return Div(
+                Div(
+                    Svg(
+                        Path(d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z", fill="currentColor"),
+                        viewBox="0 0 24 24", 
+                        width="24", 
+                        height="24",
+                        cls="inline-block mr-2"
+                    ),
+                    Span("No previous interactive content available", cls="align-middle"),
+                    cls="flex items-center"
+                ),
+                P("You need to create at least two versions before using this feature.", cls="mt-2 text-sm"),
+                cls="bg-amber-900 text-amber-100 p-4 rounded mb-4 border border-amber-700"
+            )
 
     @rt('/api/html5/preview-content')
     async def get(req):
@@ -938,7 +958,6 @@ def routes(rt):
                 <a href="data:application/zip;base64,{encoded_zip}" 
                 download="{filename}" 
                 type="application/zip"
-                onclick="setTimeout(() => {{if(confirm('Download not starting? Click OK to try again.')) this.click();}}, 2000)"
                 class="inline-block bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded flex items-center w-fit download-link">
                     <svg viewBox="0 0 24 24" width="20" height="20" class="mr-2">
                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z" fill="currentColor"></path>
@@ -947,12 +966,6 @@ def routes(rt):
                 </a>
                 <p class="text-xs text-gray-400 mt-2">Upload this ZIP directly to SLS as a media object.</p>
             </div>
-            <script>
-                // Auto-trigger download
-                setTimeout(function() {{
-                    document.querySelector('.download-link').click();
-                }}, 500);
-            </script>
             """)
             
         except Exception as error:
@@ -971,43 +984,6 @@ def routes(rt):
             </div>
             """)
 
-
-    @rt('/api/html5/check-history')
-    async def get(req):
-        """Check if there is any history available"""
-        # Get user ID from session for history tracking
-        user_id = req.session.get('auth', 'anonymous')
-        
-        # Get a copy of the history to avoid reference issues
-        history = list(req.session.get('html5_history', []))
-        
-        # If session history is empty but we have global history, use that
-        if not history and user_id in GLOBAL_HISTORY:
-            history = GLOBAL_HISTORY[user_id]
-            print(f"Retrieved history from global backup. Size: {len(history)}")
-            
-            # Update session with global history
-            req.session['html5_history'] = list(history)
-            print("Updated session with global history")
-        
-        print("\n----- CHECK HISTORY DEBUG -----")
-        print(f"Session keys: {list(req.session.keys())}")
-        print(f"History size: {len(history)}")
-        print(f"Global history size for user {user_id}: {len(GLOBAL_HISTORY.get(user_id, []))}")
-        
-        if history:
-            print("History contents:")
-            for i, state in enumerate(history):
-                print(f"State {i + 1}:")
-                print(f"  HTML length: {len(state['html'])}")
-                print(f"  CSS length: {len(state['css'])}")
-                print(f"  JS length: {len(state['js'])}")
-        else:
-            print("No history found")
-            
-        # Return a simple JSON response
-        return {"hasHistory": len(history) > 0}
-
     @rt('/api/html5/generate-code')
     async def post(req):
         """Generate HTML5 code based on reference images and user prompt"""
@@ -1015,12 +991,19 @@ def routes(rt):
             # Get user ID from session for history tracking
             user_id = req.session.get('auth', 'anonymous')
             
-            # Store current state in history before generating new code
+            # Get current state from session or global storage
             current_html = req.session.get('html', '')
             current_css = req.session.get('css', '')
             current_js = req.session.get('js', '')
             
-            print("\n----- HISTORY DEBUG -----")
+            if not (current_html or current_css or current_js) and user_id in GLOBAL_CODE_STORAGE and 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                # Get current state from global storage if session is empty
+                current_html = GLOBAL_CODE_STORAGE[user_id]['current']['html']
+                current_css = GLOBAL_CODE_STORAGE[user_id]['current']['css']
+                current_js = GLOBAL_CODE_STORAGE[user_id]['current']['js']
+                print("Retrieved current state from global storage")
+            
+            print("\n----- GENERATION DEBUG -----")
             print(f"Current HTML length: {len(current_html)}")
             print(f"Current CSS length: {len(current_css)}")
             print(f"Current JS length: {len(current_js)}")
@@ -1041,49 +1024,22 @@ def routes(rt):
                 print(f"Form CSS length: {len(current_css)}")
                 print(f"Form JS length: {len(current_js)}")
             
-            # Store in history if we have content
+            # If we have valid current state, save it before generating new code
             if current_html or current_css or current_js:
-                # Get existing history from session or global backup
-                history = req.session.get('html5_history', [])
+                # Initialize storage for this user if needed
+                if user_id not in GLOBAL_CODE_STORAGE:
+                    GLOBAL_CODE_STORAGE[user_id] = {}
                 
-                # If session history is empty but we have global history, use that
-                if not history and user_id in GLOBAL_HISTORY:
-                    history = GLOBAL_HISTORY[user_id]
-                    print(f"Retrieved history from global backup. Size: {len(history)}")
-                
-                # Create a copy of the history to avoid reference issues
-                history = list(history)
-                
-                current_state = {
-                    'html': current_html,
-                    'css': current_css,
-                    'js': current_js
-                }
-                
-                # Only add to history if this state is different from the last one
-                if not history or (history[-1]['html'] != current_html or 
-                                history[-1]['css'] != current_css or 
-                                history[-1]['js'] != current_js):
-                    history.append(current_state)
-                    
-                    # Store the updated history back in the session
-                    # Make a completely new copy to ensure it's stored properly
-                    req.session['html5_history'] = list(history)
-                    
-                    # Also store in global backup
-                    GLOBAL_HISTORY[user_id] = list(history)
-                    
-                    print(f"Added state to history. History size: {len(history)}")
-                    print("History contents:")
-                    for i, state in enumerate(history):
-                        print(f"State {i + 1}:")
-                        print(f"  HTML length: {len(state['html'])}")
-                        print(f"  CSS length: {len(state['css'])}")
-                        print(f"  JS length: {len(state['js'])}")
-            else:
-                print("No current state to store in history")
+                # Check if we have a current state to move to previous
+                if 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                    # Save current state as previous before updating
+                    print(f"\n----- GENERATE SAVING PREVIOUS STATE -----")
+                    print(f"Saving previous content for user {user_id}")
+                    current = GLOBAL_CODE_STORAGE[user_id]['current']
+                    GLOBAL_CODE_STORAGE[user_id]['previous'] = dict(current)
+                    print("Saved current state as previous")
             
-            # Get form data for the new code generation
+            # Get the prompt and model from the form
             prompt = form.get('prompt', '')
             model = form.get('model', 'gpt-4o')
             is_iterative = form.get('iterative-toggle') == 'on'
@@ -1116,6 +1072,19 @@ def routes(rt):
                 req.session['html'] = html
                 req.session['css'] = css
                 req.session['js'] = js
+                
+                # Store the new state in global storage
+                if user_id not in GLOBAL_CODE_STORAGE:
+                    GLOBAL_CODE_STORAGE[user_id] = {}
+                
+                # Store new code as current state
+                GLOBAL_CODE_STORAGE[user_id]['current'] = {
+                    'html': html,
+                    'css': css,
+                    'js': js
+                }
+                
+                print("Stored new generated code in global storage and session")
             except Exception as e:
                 print(f"Error generating code: {str(e)}")
                 import traceback
@@ -1290,7 +1259,7 @@ def routes(rt):
                     // Add data URL to iframe src
                     window.setTimeout(function() {{
                         const iframe = document.createElement('iframe');
-                        iframe.srcdoc = atob("{encoded_content}");
+                        iframe.src = "data:text/html;base64,{encoded_content}";
                         iframe.style.width = '100%';
                         iframe.style.height = '100%';
                         iframe.style.border = 'none';
@@ -1318,55 +1287,54 @@ def routes(rt):
     async def post(req):
         """Refine existing HTML5 code based on reference images and refinement instructions"""
         try:
-            # Get user ID from session for history tracking
+            # Get user ID from session for storage
             user_id = req.session.get('auth', 'anonymous')
             
-            # Get form data
+            # Get form data for refinement
             form = await req.form()
             
-            # Extract current code from the hidden fields
+            # Get current HTML/CSS/JS for refinement
+            # First try to get from form (in case it was explicitly provided)
             current_html = form.get('current_html', '')
             current_css = form.get('current_css', '')
             current_js = form.get('current_js', '')
             
-            print("\n----- REFINEMENT DEBUG -----")
-            print(f"Current HTML length: {len(current_html)}")
-            print(f"Current CSS length: {len(current_css)}")
-            print(f"Current JS length: {len(current_js)}")
+            # If not provided in form, try to get from global storage
+            if not (current_html or current_css or current_js):
+                if user_id in GLOBAL_CODE_STORAGE and 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                    current_html = GLOBAL_CODE_STORAGE[user_id]['current']['html']
+                    current_css = GLOBAL_CODE_STORAGE[user_id]['current']['css']
+                    current_js = GLOBAL_CODE_STORAGE[user_id]['current']['js']
+                    print("Got current code from global storage")
+                else:
+                    # As a last resort, try to get from session
+                    current_html = req.session.get('html', '')
+                    current_css = req.session.get('css', '')
+                    current_js = req.session.get('js', '')
+                    print("Got current code from session")
             
-            # Store in history if we have content
+            print(f"Current code lengths - HTML: {len(current_html)}, CSS: {len(current_css)}, JS: {len(current_js)}")
+            
+            # Store current code as previous before refinement
             if current_html or current_css or current_js:
-                # Get existing history from session or global backup
-                history = req.session.get('html5_history', [])
+                # Initialize storage for this user if needed
+                if user_id not in GLOBAL_CODE_STORAGE:
+                    GLOBAL_CODE_STORAGE[user_id] = {}
                 
-                # If session history is empty but we have global history, use that
-                if not history and user_id in GLOBAL_HISTORY:
-                    history = GLOBAL_HISTORY[user_id]
-                    print(f"Retrieved history from global backup. Size: {len(history)}")
+                # Save current state as previous before updating
+                if 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                    print(f"\n----- REFINE SAVING PREVIOUS STATE -----")
+                    print(f"Saving previous content for user {user_id}")
+                    current = GLOBAL_CODE_STORAGE[user_id]['current']
+                    GLOBAL_CODE_STORAGE[user_id]['previous'] = dict(current)
+                    print("Saved current state as previous before refinement")
                 
-                # Create a copy of the history to avoid reference issues
-                history = list(history)
-                
-                current_state = {
+                # Update current state (will be replaced after refinement)
+                GLOBAL_CODE_STORAGE[user_id]['current'] = {
                     'html': current_html,
                     'css': current_css,
                     'js': current_js
                 }
-                
-                # Only add to history if this state is different from the last one
-                if not history or (history[-1]['html'] != current_html or 
-                                history[-1]['css'] != current_css or 
-                                history[-1]['js'] != current_js):
-                    history.append(current_state)
-                    
-                    # Store the updated history back in the session
-                    # Make a completely new copy to ensure it's stored properly
-                    req.session['html5_history'] = list(history)
-                    
-                    # Also store in global backup
-                    GLOBAL_HISTORY[user_id] = list(history)
-                    
-                    print(f"Added state to history. History size: {len(history)}")
             else:
                 print("No current code to refine")
                 return Div(
@@ -1404,10 +1372,121 @@ def routes(rt):
                 if not (html or css or js):
                     raise ValueError("No content was generated from refinement. Please try again with different instructions.")
                 
-                # Store the new state in session
+                # Store the refined code in session
                 req.session['html'] = html
                 req.session['css'] = css
                 req.session['js'] = js
+                
+                # Store the refined code in global storage
+                if user_id not in GLOBAL_CODE_STORAGE:
+                    GLOBAL_CODE_STORAGE[user_id] = {}
+                
+                # Store refined code as current state
+                GLOBAL_CODE_STORAGE[user_id]['current'] = {
+                    'html': html,
+                    'css': css,
+                    'js': js
+                }
+                
+                print("Stored refined code in global storage and session")
+                
+                # Create preview content with the refined code
+                preview_content = f"""<!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                    body {{
+                        background-color: #121212;
+                        color: #ffffff;
+                        margin: 0;
+                        padding: 0;
+                        font-family: Arial, sans-serif;
+                        min-height: 100vh;
+                        display: flex;
+                        flex-direction: column;
+                    }}
+                    /* User CSS */
+                    {css}
+                    </style>
+                </head>
+                <body>
+                    <div id="content-container">
+                        {html}
+                    </div>
+                    <script>
+                    // Initialize content and catch errors
+                    try {{
+                        {js}
+                    }} catch (error) {{
+                        console.error('Error in JavaScript execution:', error);
+                        const errorDiv = document.createElement('div');
+                        errorDiv.style.color = 'red';
+                        errorDiv.style.padding = '10px';
+                        errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
+                        document.body.appendChild(errorDiv);
+                    }}
+                    </script>
+                </body>
+                </html>"""
+                
+                # Encode the content as base64
+                encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
+                
+                # Create code editors with the new code
+                return [
+                    Div(
+                        "Code Successfully Refined",
+                        cls="bg-green-900 text-green-100 p-2 rounded mb-4"
+                    ),
+                    create_code_editors(html, css, js),
+                    NotStr(f"""
+                    <script>
+                        // Add a create ZIP button after refinement
+                        const dynamicButtonsContainer = document.getElementById('dynamic-buttons');
+                        if (dynamicButtonsContainer) {{
+                            // Create a ZIP button
+                            const zipButton = document.createElement('button');
+                            zipButton.id = 'create-zip-button';
+                            zipButton.innerHTML = `
+                                <div class="flex items-center justify-center w-full">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                        <path d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-2v2H9V4h6zM4 8h16v3H4V8zm0 11v-6h16v6H4z"/>
+                                    </svg>
+                                    <span class="ml-2">Create ZIP</span>
+                                </div>`;
+                            zipButton.className = 'action-button bg-gradient-to-r from-indigo-600 to-indigo-500';
+                            // Add explicit onclick handler to call createZipPackage function directly
+                            zipButton.onclick = function(e) {{
+                                e.preventDefault();
+                                console.log("ZIP button clicked with direct onclick handler");
+                                createZipPackage();
+                                return false;
+                            }};
+                            dynamicButtonsContainer.appendChild(zipButton);
+                        }}
+                    </script>
+                    """),
+                    NotStr(f"""
+                    <script>
+                        // Add data URL to iframe src
+                        window.setTimeout(function() {{
+                            const iframe = document.createElement('iframe');
+                            iframe.src = "data:text/html;base64,{encoded_content}";
+                            iframe.style.width = '100%';
+                            iframe.style.height = '100%';
+                            iframe.style.border = 'none';
+                            
+                            const container = document.getElementById('preview-container');
+                            if (container) {{
+                                container.innerHTML = '';
+                                container.appendChild(iframe);
+                            }}
+                        }}, 300);
+                    </script>
+                    """)
+                ]
             except Exception as e:
                 print(f"Error refining code: {str(e)}")
                 import traceback
@@ -1424,104 +1503,6 @@ def routes(rt):
                     </script>
                     """)
                 ]
-            
-            # Create preview content
-            preview_content = f"""<!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                body {{
-                    background-color: #121212;
-                    color: #ffffff;
-                    margin: 0;
-                    padding: 0;
-                    font-family: Arial, sans-serif;
-                    min-height: 100vh;
-                    display: flex;
-                    flex-direction: column;
-                }}
-                /* User CSS */
-                {css}
-                </style>
-            </head>
-            <body>
-                <div id="content-container">
-                    {html}
-                </div>
-                <script>
-                // Initialize content and catch errors
-                try {{
-                    {js}
-                }} catch (error) {{
-                    console.error('Error in JavaScript execution:', error);
-                    const errorDiv = document.createElement('div');
-                    errorDiv.style.color = 'red';
-                    errorDiv.style.padding = '10px';
-                    errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + error.message;
-                    document.body.appendChild(errorDiv);
-                }}
-                </script>
-            </body>
-            </html>"""
-            
-            # Encode the content as base64
-            encoded_content = base64.b64encode(preview_content.encode('utf-8')).decode('utf-8')
-            
-            # Return with a refinement success banner
-            return [
-                Div(
-                    "Code Successfully Refined",
-                    cls="bg-green-900 text-green-100 p-2 rounded mb-4"
-                ),
-                create_code_editors(html, css, js),
-                NotStr(f"""
-                <script>
-                    // Add a create ZIP button after refinement
-                    const dynamicButtonsContainer = document.getElementById('dynamic-buttons');
-                    if (dynamicButtonsContainer) {{
-                        // Create a ZIP button
-                        const zipButton = document.createElement('button');
-                        zipButton.id = 'create-zip-button';
-                        zipButton.innerHTML = `
-                            <div class="flex items-center justify-center w-full">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                                    <path d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-2v2H9V4h6zM4 8h16v3H4V8zm0 11v-6h16v6H4z"/>
-                                </svg>
-                                <span class="ml-2">Create ZIP</span>
-                            </div>`;
-                        zipButton.className = 'action-button bg-gradient-to-r from-indigo-600 to-indigo-500';
-                        // Add explicit onclick handler to call createZipPackage function directly
-                        zipButton.onclick = function(e) {{
-                            e.preventDefault();
-                            console.log("ZIP button clicked with direct onclick handler");
-                            createZipPackage();
-                            return false;
-                        }};
-                        dynamicButtonsContainer.appendChild(zipButton);
-                    }}
-                </script>
-                """),
-                NotStr(f"""
-                <script>
-                    // Add data URL to iframe src
-                    window.setTimeout(function() {{
-                        const iframe = document.createElement('iframe');
-                        iframe.srcdoc = atob("{encoded_content}");
-                        iframe.style.width = '100%';
-                        iframe.style.height = '100%';
-                        iframe.style.border = 'none';
-                        
-                        const container = document.getElementById('preview-container');
-                        if (container) {{
-                            container.innerHTML = '';
-                            container.appendChild(iframe);
-                        }}
-                    }}, 300);
-                </script>
-                """)
-            ]
                 
         except Exception as e:
             print(f"Error in refine-code route: {str(e)}")
@@ -1569,16 +1550,9 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
         
         # System prompt design with reference to images
         system_prompt = """
-        You are a web developer specialized in HTML5 content creation.
-        
-        You have to complete one of the following tasks:
-        1. Create a new HTML5 interactive content based on the user's prompt.
-        2. Modify existing HTML, CSS, and JavaScript code that the user has provided, based on the user's instructions.
-        
-        **IMPORTANT**: You must use the extract_code_components tool to return your code. Don't format your response as markdown code blocks. Instead, use the tool to provide the HTML, CSS, and JavaScript components separately.
-        
-        **CRITICAL**: JavaScript is REQUIRED for all interactive content. You MUST include JavaScript code in your response, even for simple interactions. Without JavaScript, the HTML5 content will not be interactive.
-        """
+        You are a web developer specialising in creating Educational HTML5 interactive content.
+
+        You have to complete one of the following tasks:"""
         
         # Initialize user_prompt with the original prompt
         user_prompt = prompt
@@ -1593,13 +1567,9 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
 
                 ITERATIVE MODE INSTRUCTIONS:
                 - You are modifying existing HTML, CSS, and JavaScript code that the user has provided.
-                - Maintain the same overall structure while making the improvements requested in the user's instructions.
-                - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code.
-                - You must return the original or improved JavaScript to enable the interactive content to run the simulation or game.
-                - Return the complete improved code with all three components properly wrapped.
+                - Focus on addressing the specific requests while preserving the existing functionality and the overall structure of the code. 
+                - As far as possible only add, remove or modify code to align with the user's instructions and leave the rest of the code unchanged.
                 - Provide comments in the code to explain the changes you have made
-                - Your response should only contain the modified code, with no other text or comments.
-                - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
 
                 Here is the existing HTML code:
                 ```html
@@ -1617,6 +1587,8 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 ```
 
                 Please modify the code according to my instructions while maintaining the overall structure and functionality.
+                **IMPORTANT**: JavaScript is REQUIRED for all interactive content. You MUST include JavaScript code in your response, even for simple interactions. Without JavaScript, the HTML5 content will not be interactive.
+                **CRITICAL**: Use the extract_code_components tool to return your code in a structured format.
                 User request and instructions:
                 """         
 
@@ -1628,24 +1600,22 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             
             NEW CONTENT CREATION INSTRUCTIONS:
             Important:
-            - Use the provided reference images as inspiration and references.
+            - Use the provided reference images as references on how to create the content.
             - Provide comments in the code on what the code is doing and how it works.
-            - You must generate three separate components (HTML, CSS, JavaScript), each properly formatted.
-            - You must generate JavaScript for every interactive content to enable to run the simulation or game.
-            - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
+            **IMPORTANT**: JavaScript is REQUIRED for all interactive content. You MUST include JavaScript code in your response, even for simple interactions. Without JavaScript, the HTML5 content will not be interactive.
+            **CRITICAL**: Use the extract_code_components tool to generate three separate components (HTML, CSS, JavaScript) in a structured format.
 
             User request and instructions:
             """
         else:
-            system_prompt += """
+                system_prompt += """
             
             NEW CONTENT CREATION INSTRUCTIONS:
             Important:
-            - Use the provided reference images as inspiration and references.
+            - Use the provided reference images as references on how to create the content.
             - Provide comments in the code on what the code is doing and how it works.
-            - You must generate three separate components (HTML, CSS, JavaScript), each properly formatted.
-            - You must generate JavaScript for every interactive content to enable to run the simulation or game.
-            - IMPORTANT: Use the extract_code_components tool to return your code in a structured format.
+            **IMPORTANT**: JavaScript is REQUIRED for all interactive content. You MUST include JavaScript code in your response, even for simple interactions. Without JavaScript, the HTML5 content will not be interactive.
+            **CRITICAL**: Use the extract_code_components tool to generate three separate components (HTML, CSS, JavaScript) in a structured format.
 
             User request and instructions:
             """

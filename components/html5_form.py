@@ -581,6 +581,60 @@ def create_html5_form(api_key=None):
             .action-button:disabled:hover::after {
                 background-color: rgba(255, 255, 255, 0);
             }
+            
+            /* Custom button container styling */
+            #editor-buttons-container {
+                background: linear-gradient(to right, #1a1c2e, #2d3748);
+                border: 2px solid #4299e1;
+                border-radius: 16px;
+                padding: 20px;
+                margin: 20px auto;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+                transition: all 0.5s ease;
+            }
+            
+            #editor-buttons-container:hover {
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+                border-color: #63b3ed;
+            }
+            
+            /* Custom button styling */
+            .editor-action-button {
+                font-size: 1.125rem;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .editor-action-button:hover {
+                transform: translateY(-3px) scale(1.02);
+            }
+            
+            .editor-action-button:active {
+                transform: translateY(1px);
+            }
+            
+            /* Button highlight effect */
+            .editor-action-button::before {
+                content: '';
+                position: absolute;
+                top: -50%;
+                left: -50%;
+                width: 200%;
+                height: 200%;
+                background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+                transform: scale(0);
+                opacity: 0;
+                transition: transform 0.6s, opacity 0.6s;
+            }
+            
+            .editor-action-button:hover::before {
+                transform: scale(1);
+                opacity: 1;
+            }
 
             /* Make buttons more responsive on small screens */
             @media (max-width: 640px) {
@@ -827,11 +881,6 @@ def create_html5_form(api_key=None):
                         value=api_key,
                         type='hidden'),
                     
-                    # Hidden fields for current code
-                    Input(id='current_html', name='current_html', type='hidden'),
-                    Input(id='current_css', name='current_css', type='hidden'),
-                    Input(id='current_js', name='current_js', type='hidden'),
-                    
                     # Model selector
                     Div(
                         Label("Model:", cls="block mb-2"),
@@ -1009,80 +1058,100 @@ def create_html5_form(api_key=None):
                 Div(id="code-editors-container", cls="mt-4"),
                 # Editor buttons container
                 Div(
-                    # Run Preview button
-                    Button("Run Preview",
-                        id="run-preview-button",
-                        hx_post="/api/html5/preview",
-                        hx_target="#preview-container",
-                        hx_include="#html-editor,#css-editor,#js-editor",
-                        cls="action-button bg-gradient-to-r from-green-600 to-green-500 hidden"),
-                    
-                    # Undo button with icon
-                    Button(
-                        Div(
-                            Svg(
-                                Path(d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z", 
-                                     fill="currentColor"),
-                                viewBox="0 0 24 24", 
-                                width="20", 
-                                height="20"
+                    # Button Group Container
+                    Div(
+                        # Run Preview button
+                        Button(
+                            Div(
+                                Svg(
+                                    Path(d="M8 5v14l11-7z", fill="currentColor"),
+                                    viewBox="0 0 24 24", 
+                                    width="18", 
+                                    height="18"
+                                ),
+                                Span("Run Preview", cls="ml-2"),
+                                cls="flex items-center justify-center"
                             ),
-                            Span("Undo", cls="ml-2"),
-                            cls="flex items-center justify-center w-full"
+                            id="run-preview-button",
+                            hx_post="/api/html5/preview",
+                            hx_target="#preview-container",
+                            hx_include="#html-editor,#css-editor,#js-editor",
+                            cls="action-button bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-2 rounded-md hidden"
                         ),
-                        id="undo-button",
-                        hx_post="/api/html5/undo",
-                        hx_target="#code-editors-container",
-                        hx_swap="innerHTML",
-                        disabled=True,
-                        cls="action-button bg-gradient-to-r from-blue-600 to-blue-500 hidden opacity-50 cursor-not-allowed",
-                        hx_trigger="click",
-                        hx_include="[id='html-editor'],[id='css-editor'],[id='js-editor']",
-                        hx_on_after_request="""
-                            if(event.detail.successful) {
-                                // Check if there's more history available
-                                fetch('/api/html5/check-history')
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if(data.hasHistory) {
-                                            this.disabled = false;
-                                            this.classList.remove('opacity-50', 'cursor-not-allowed');
-                                        } else {
-                                            this.disabled = true;
-                                            this.classList.add('opacity-50', 'cursor-not-allowed');
-                                        }
-                                    });
-                            }
-                        """
+                        
+                        # Create ZIP button
+                        Button(
+                            Div(
+                                Svg(
+                                    Path(d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-2v2H9V4h6zM4 8h16v3H4V8zm0 11v-6h16v6H4z", fill="currentColor"),
+                                    viewBox="0 0 24 24", 
+                                    width="18", 
+                                    height="18"
+                                ),
+                                Span("Create ZIP", cls="ml-2"),
+                                cls="flex items-center justify-center"
+                            ),
+                            id="create-zip-button",
+                            cls="action-button bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-2 rounded-md hidden",
+                            onclick="createZipPackage(); return false;"
+                        ),
+                        
+                        # Clear All button
+                        Button(
+                            Div(
+                                Svg(
+                                    Path(d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z", fill="currentColor"),
+                                    viewBox="0 0 24 24", 
+                                    width="18", 
+                                    height="18"
+                                ),
+                                Span("Clear All", cls="ml-2"),
+                                cls="flex items-center justify-center"
+                            ),
+                            id="clear-button",
+                            hx_post="/api/html5/clear-preview",
+                            hx_target="#preview-container",
+                            hx_trigger="click",
+                            hx_swap="innerHTML",
+                            cls="action-button bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-2 rounded-md hidden",
+                        ),
+                        
+                        # Previous Interactive button
+                        Button(
+                            Div(
+                                Svg(
+                                    Path(d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z", fill="currentColor"),
+                                    viewBox="0 0 24 24", 
+                                    width="18", 
+                                    height="18"
+                                ),
+                                Span("Previous Interactive", cls="ml-2"),
+                                cls="flex items-center justify-center"
+                            ),
+                            id="previous-interactive-button",
+                            hx_post="/api/html5/load-previous",
+                            hx_target="#code-editors-container",
+                            hx_trigger="click",
+                            cls="action-button bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-2 rounded-md hidden",
+                        ),
+                        id="editor-buttons-container",
+                        cls="flex justify-between items-center gap-8 p-3 rounded-lg mx-auto my-4 bg-gray-800 border-0"
                     ),
-                    
-                    # Container for buttons that will be added after generation
-                    Div(id="dynamic-buttons", cls="flex-grow"),
-                    
-                    # Clear All button
-                    Button(
-                        Div(
-                            Svg(
-                                Path(d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z", fill="currentColor"),
-                                viewBox="0 0 24 24", 
-                                width="20", 
-                                height="20"
-                            ),
-                            Span("Clear All", cls="ml-2"),
-                            cls="flex items-center justify-center w-full"
-                        ),
-                        id="clear-button",
-                        hx_post="/api/html5/clear-preview",
-                        hx_target="#preview-container",
-                        hx_trigger="click",
-                        hx_swap="innerHTML",
-                        cls="action-button bg-gradient-to-r from-gray-600 to-gray-500 hidden"),
                     
                     # Container for ZIP download link (initially empty)
                     Div(id="zip-download-container", cls="mt-6 w-full"),
                     
+                    # Add a style to remove all borders
+                    Style("""
+                    #editor-buttons, #editor-buttons-container, #editor-buttons * {
+                      border: none !important;
+                      outline: none !important;
+                      box-shadow: none !important;
+                    }
+                    """),
+                    
                     id="editor-buttons",
-                    cls="mt-6 flex flex-wrap justify-between items-center gap-4"
+                    cls="mt-6 border-0 outline-none shadow-none"
                 ),
                 
                 cls="mt-4"
@@ -1177,6 +1246,7 @@ def create_html5_form(api_key=None):
                         const runButton = document.getElementById('run-preview-button');
                         const zipButton = document.getElementById('create-zip-button');
                         const clearButton = document.getElementById('clear-button');
+                        const previousButton = document.getElementById('previous-interactive-button');
                         
                         // Show them all by removing the hidden class
                         if (runButton) {
@@ -1185,12 +1255,15 @@ def create_html5_form(api_key=None):
                         }
                         if (zipButton) {
                             zipButton.classList.remove('hidden');
-                            zipButton.style.display = 'inline-flex';  // Force display as flex
-                            console.log('ZIP button visible and set to display flex');
+                            console.log('ZIP button visible');
                         }
                         if (clearButton) {
                             clearButton.classList.remove('hidden');
                             console.log('Clear button visible');
+                        }
+                        if (previousButton) {
+                            previousButton.classList.remove('hidden');
+                            console.log('Previous Interactive button visible');
                         }
                         
                         // Auto-trigger preview
@@ -1201,18 +1274,8 @@ def create_html5_form(api_key=None):
                             }
                         }, 500);
                     }
-                    
-                    // Additional check for ZIP button visibility after a delay
-                    setTimeout(function() {
-                        const zipButton = document.getElementById('create-zip-button');
-                        if (zipButton && zipButton.classList.contains('hidden')) {
-                            console.log('ZIP button still hidden after delay, forcing show');
-                            zipButton.classList.remove('hidden');
-                            zipButton.style.display = 'inline-flex';
-                        }
-                    }, 1000);
                 });
-
+                
                 // Main tab switching function
                 function switchMainTab(tabName, event) {
                     // Prevent default behavior
@@ -1240,86 +1303,14 @@ def create_html5_form(api_key=None):
                         selectedPanel.style.display = 'block';
                     }
                     
-                    // If switching to iteration tab, populate the hidden fields with current editor content
-                    if (tabName === 'refinement') {
-                        updateRefinementFormWithCurrentCode();
-                    }
-                    
                     console.log(`Switched to main tab: ${tabName}`);
                     return false;
                 }
                 
                 // Function to update refinement form with current code
                 function updateRefinementFormWithCurrentCode() {
-                    const htmlEditor = document.getElementById('html-editor');
-                    const cssEditor = document.getElementById('css-editor');
-                    const jsEditor = document.getElementById('js-editor');
-                    
-                    const currentHtmlField = document.getElementById('current_html');
-                    const currentCssField = document.getElementById('current_css');
-                    const currentJsField = document.getElementById('current_js');
-                    
-                    if (htmlEditor && currentHtmlField) {
-                        currentHtmlField.value = htmlEditor.value || '';
-                        console.log('Updated current HTML field:', currentHtmlField.value.length, 'chars');
-                    }
-                    
-                    if (cssEditor && currentCssField) {
-                        currentCssField.value = cssEditor.value || '';
-                        console.log('Updated current CSS field:', currentCssField.value.length, 'chars');
-                    }
-                    
-                    if (jsEditor && currentJsField) {
-                        currentJsField.value = jsEditor.value || '';
-                        console.log('Updated current JS field:', currentJsField.value.length, 'chars');
-                    }
-                    
-                    // Debug the image uploaders in the iteration tab when switching
-                    console.log("Checking iteration tab image uploaders:");
-                    for (let i = 0; i < 5; i++) {
-                        const uploadInput = document.getElementById(`iter-image-upload-${i}`);
-                        const dataInput = document.getElementById(`iter-image-data-${i}`);
-                        const previewContainer = document.getElementById(`iter-preview-container-${i}`);
-                        
-                        console.log(`Uploader ${i}: upload input exists: ${!!uploadInput}, data input exists: ${!!dataInput}, preview container exists: ${!!previewContainer}`);
-                        
-                        // Ensure the iteration tab image uploaders are initialized correctly
-                        if (uploadInput && dataInput && previewContainer) {
-                            console.log(`Verifying event listeners for uploader ${i}`);
-                            
-                            // Ensure the event listener is attached
-                            const newListener = function(e) {
-                                console.log(`Image upload ${i} change event triggered`);
-                                const file = e.target.files[0];
-                                const container = document.getElementById(`iter-uploader-container-${i}`);
-                                
-                                if (file) {
-                                    const reader = new FileReader();
-                                    
-                                    reader.onload = function(e) {
-                                        // Show preview
-                                        previewContainer.innerHTML = `<img src="${e.target.result}" class="max-h-full max-w-full object-contain" />`;
-                                        previewContainer.classList.remove('hidden');
-                                        
-                                        // Store base64 data in the hidden input
-                                        const base64Data = e.target.result.split(',')[1];
-                                        dataInput.value = base64Data;
-                                        
-                                        // Add visual indication
-                                        if (container) container.classList.add('has-image');
-                                        
-                                        console.log(`Image ${i} uploaded and processed successfully`);
-                                    };
-                                    
-                                    reader.readAsDataURL(file);
-                                }
-                            };
-                            
-                            // Re-attach the event listener
-                            uploadInput.removeEventListener('change', newListener);
-                            uploadInput.addEventListener('change', newListener);
-                        }
-                    }
+                    // No need to update hidden fields as they've been removed
+                    console.log('Refinement form updated - using server-side storage');
                 }
                 
                 // Debugging code to troubleshoot the ZIP button
@@ -1622,9 +1613,6 @@ def create_html5_form(api_key=None):
                         refinementForm.addEventListener('submit', function(e) {
                             e.preventDefault();
                             
-                            // First update the hidden fields with current code
-                            updateRefinementFormWithCurrentCode();
-                            
                             // Show loading indicator
                             document.getElementById('loading-indicator').style.display = 'block';
                             
@@ -1662,61 +1650,6 @@ def create_html5_form(api_key=None):
                         });
                     }
                 });
-                
-                // Update the JavaScript to handle undo button state
-                function updateUndoButtonState() {
-                    const undoButton = document.getElementById('undo-button');
-                    if (undoButton) {
-                        // Check if there's any history in the session
-                        fetch('/api/html5/check-history')
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.hasHistory) {
-                                    undoButton.disabled = false;
-                                    undoButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                                } else {
-                                    undoButton.disabled = true;
-                                    undoButton.classList.add('opacity-50', 'cursor-not-allowed');
-                                }
-                            });
-                    }
-                }
-
-                // Update undo button state when code is generated
-                document.addEventListener('htmx:afterSwap', function(event) {
-                    if (event.detail.target.id === 'code-editors-container') {
-                        updateUndoButtonState();
-                    }
-                });
-
-                // Update undo button state on page load
-                document.addEventListener('DOMContentLoaded', function() {
-                    updateUndoButtonState();
-                });
-
-                // Add a create ZIP button after generation
-                const dynamicButtonsContainer = document.getElementById('dynamic-buttons');
-                if (dynamicButtonsContainer) {
-                    // Create a ZIP button
-                    const zipButton = document.createElement('button');
-                    zipButton.id = 'create-zip-button';
-                    zipButton.innerHTML = `
-                        <div class="flex items-center justify-center w-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                                <path d="M20 6h-3V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-2v2H9V4h6zM4 8h16v3H4V8zm0 11v-6h16v6H4z"/>
-                            </svg>
-                            <span class="ml-2">Create ZIP</span>
-                        </div>`;
-                    zipButton.className = 'action-button bg-gradient-to-r from-indigo-600 to-indigo-500';
-                    // Add explicit onclick handler to call createZipPackage function directly
-                    zipButton.onclick = function(e) {
-                        e.preventDefault();
-                        console.log("ZIP button clicked with direct onclick handler");
-                        createZipPackage();
-                        return false;
-                    };
-                    dynamicButtonsContainer.appendChild(zipButton);
-                }
         """)
     )
     

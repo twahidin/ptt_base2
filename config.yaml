@@ -230,128 +230,316 @@ templates:
     
     Design simple, encouraging games that build confidence and foundational skills through play.
 
+  general_game_template: |
+
+    Objective:
+    Create a fully interactive, pedagogically sound, and engaging educational game using only HTML, CSS, and JavaScript (no external libraries). The output must be a single self-contained HTML file suitable for embedding within the Singapore Student Learning Space (SLS). The game should require critical thinking, problem-solving, and application of subject knowledge while maintaining engagement.
+
+    Target Audience:
+    Students aged {5 to 12 or 13 to 16 or 17 to 18} years old.
+
+    Educational Core:
+
+    1. Core Topic:
+    { INSERT TOPIC HERE, aligning with objectives and syllabus level }
+
+    2. Educational Concepts Taught/Reinforced:
+
+    { INSERT EDUCATIONAL CONCEPT 1 HERE }
+    { INSERT EDUCATIONAL CONCEPT 2 HERE }
+    { ... add more concepts as needed ... }
+
+    Game Core Requirements:
+
+    3. Gameplay Mechanics:
+
+    { INSERT CORE GAMEPLAY MECHANIC 1 HERE, e.g., "Drag-and-drop matching", "Physics-based trajectory calculation", "Resource management simulation" }
+    { INSERT CORE GAMEPLAY MECHANIC 2 HERE }
+    { ... add more mechanics as needed ... }
+    4. Game Goal:
+    { INSERT THE PRIMARY OBJECTIVE FOR THE PLAYER HERE, e.g., "Achieve the target score", "Complete all levels", "Build the most efficient circuit", "Solve the puzzle using scientific principles" }
+
+    5. Key Interactive Elements (Player Controlled):
+
+    { INSERT INTERACTIVE ELEMENT 1 HERE, e.g., "Control levers/buttons" }
+    { INSERT INTERACTIVE ELEMENT 2 HERE, e.g., "Inventory selection" }
+    { INSERT INTERACTIVE ELEMENT 3 HERE, e.g., "Input fields for answers/parameters" }
+    { ... add more elements as needed ... } (Ensure intuitive controls for keyboard/mouse and potentially touch).
+    6. Player Statistics Tracked/Displayed:
+
+    { INSERT PLAYER STATISTIC 1 HERE, e.g., "Score / Points" }
+    { INSERT PLAYER STATISTIC 2 HERE, e.g., "Accuracy Percentage" }
+    { INSERT PLAYER STATISTIC 3 HERE, e.g., "Time Taken / Remaining" }
+    { INSERT PLAYER STATISTIC 4 HERE, e.g., "Resources Collected / Used" } (Display these stats in non-intrusive locations within the game UI).
+    7. Challenge Levels / Progression:
+
+    { INSERT CHALLENGE LEVEL 1 DESCRIPTION HERE, e.g., "Level 1: Basic concepts, slow pace" }
+    { INSERT CHALLENGE LEVEL 2 DESCRIPTION HERE, e.g., "Level 2: Introduce variable X, faster timing" }
+    { DESCRIBE OVERALL PROGRESSION MECHANISM HERE, e.g., "Unlocking new tools/areas based on score", "Increasing complexity of problems" } (Provide progressive difficulty to challenge different ability levels).
+    8. Feedback Types Provided:
+
+    { INSERT FEEDBACK TYPE 1 HERE, e.g., "Instant visual feedback on correct/incorrect actions (color flash, checkmark)" }
+    { INSERT FEEDBACK TYPE 2 HERE, e.g., "Explanatory text for incorrect answers/attempts" }
+    { INSERT FEEDBACK TYPE 3 HERE, e.g., "Score updates reflecting performance" }
+    { INSERT FEEDBACK TYPE 4 HERE, e.g., "End-of-level summary" } (Feedback should be meaningful and guide learning).
+    ⚙️ Game Behavior & Features:
+
+    Underlying Model: Base game interactions on scientifically accurate principles relevant to the learning objectives, simplified appropriately for gameplay. Balance educational value with engaging gameplay.
+    Controls & Interactivity: Implement intuitive controls (as per section 5). Include clear instructions and objectives.
+    Feedback Loop: Provide clear, immediate, and educationally relevant feedback (as per section 8).
+    Scoring/Rewards: Implement a clear scoring system linked to player statistics (section 6) and game goals (section 4).
+    Visual Aids & Representation: Use clear text labels. Employ engaging, age-appropriate, and meaningful visualizations (graphics, animations, icons) that support gameplay and represent concepts effectively.
+    ♿ Accessibility:
+
+    Ensure basic web accessibility (WCAG AA): sufficient color contrast, keyboard navigability, ARIA attributes if needed, associated labels for controls.
+    User Interface Guidelines:
+
+    Place controls and status indicators logically and non-intrusively.
+    Layout must support immersive gameplay: keep UI minimal during active play, ensure the game area fills the display cleanly.
+    Use responsive design that works on various screen sizes.
+    Fit well within an iframe: width: 100%, height: 90% (approx.), strictly no internal scrollbars.
+    Language & Terminology:
+
+    Use clear, concise English appropriate for the target age group.
+    Employ scientific terminology consistent with the Singapore MOE syllabus where relevant.
+
+    Platform & Compatibility:
+    Layout adapts reasonably to landscape and portrait orientations.
+  
+
   general_simulation_template: |
     
-    Create a fully interactive and realistic simulation using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The simulation should:
-    
-    Based on this topic: { INSERT TOPIC HERE }
-    The simulation should model the following system:
-    - { INSERT SYSTEM MODEL HERE }
-    The simulation allows users to adjust these parameters:
-    - { INSERT ADJUSTABLE PARAMETERS HERE }
-    The simulation displays these key variables in real-time:
-    - { INSERT REAL-TIME VARIABLES HERE }
-    The simulation visualizes these processes or relationships:
-    - { INSERT VISUALIZATIONS HERE }
-    The simulation includes these preset scenarios:
-    - { INSERT PRESET SCENARIOS HERE }
-    
-    - Model a system with accurate underlying mechanics and behaviors
-    - Display key variables and parameters that update in real-time
-    - Include comprehensive controls for adjusting simulation parameters
-    - Provide clear visualizations of processes, relationships, and outcomes
-    - Use appropriate labels, legends, and information panels to explain what's happening
-    
+    Objective:
+    Create a fully interactive, pedagogically sound, and engaging simulation using only HTML, CSS, and JavaScript (no external libraries). The output must be a single self-contained HTML file suitable for embedding within the Singapore Student Learning Space (SLS).
+
+    Target Audience:
+    Students aged {5 to 11 or 12 to 18} years old. 
+
+    Simulation Core Requirements:
+
+    1. Topic:
+    { INSERT TOPIC HERE, ensuring it aligns with the specified MOE syllabus level, e.g., "Projectile Motion (Sec 3 Physics)", "Ohm’s Law (Sec 2 Science)", "Photosynthesis (Upper Sec Biology)" }
+
+    2. Concepts to Demonstrate:
+    { INSERT KEY CONCEPT 1 HERE }
+
+    3. Interactive Variables (User Controlled, e.g., via Sliders/Inputs):
+    { INSERT VARIABLE 1 NAME & RANGE/OPTIONS HERE, e.g., "Initial Velocity (0-50 m/s)" }
+    { INSERT VARIABLE 2 NAME & RANGE/OPTIONS HERE, e.g., "Mass (1-10 kg)" }
+
+    4. Key Variables to Display (Always Visible):
+    { INSERT DISPLAY VARIABLE 1 HERE, e.g., "Time Elapsed" }
+    { INSERT DISPLAY VARIABLE 2 HERE, e.g., "Current Height" }
+    { INSERT DISPLAY VARIABLE 3 HERE, e.g., "Voltage" }
+    { ... add more key variables as needed ... } (Consider placing this live display in the top-right corner or another logical, non-intrusive location).
+
+    5. Motion or Animation to Display:
+    { INSERT DESCRIPTION OF MOTION/ANIMATION HERE, e.g., "Parabolic trajectory of a projectile", "Electrons flowing through a circuit", "Gas molecules moving and colliding" }
+
+    6. Output/Results Visualization:
+    { INSERT DESIRED OUTPUT FORMAT HERE, e.g., "Real-time graph of Height vs. Time", "Bar chart showing energy distribution", "Table of resistance values", "Dynamic display of concentration changes" }
+    ⚙️ Simulation Behavior & Features:
+
+    Scientific Accuracy: Model the system based on scientifically accurate principles and equations appropriate for the target level. Balance realism with pedagogical clarity.
+
+    Interactivity & Controls:
+    Include standard controls: ► Play, || Pause, ►| Step (advance one time-step), and ↻ Reset for Science Virtual Laboratory Setup.
+    Implement the user-controlled variables specified in section 3 (e.g., sliders, inputs).
+    [Optional] Add checkboxes to toggle the display of relevant visual aids (vectors, paths, labels) for differentiated visualization.
+    [Optional] Consider elements for guided exploration (hints, prompts).
+
+    Visual Aids & Representation:
+    Use clear text labels on significant visual objects and controls.
+    Employ meaningful visualizations (arrows for vectors, color-coding, icons) to represent concepts effectively (e.g., velocity, forces, energy flow). Ensure these directly aid understanding.
+    [Optional] Assessment & Feedback: Incorporate simple formative assessment or feedback mechanisms where appropriate.
+
+    Accessibility:
+    Ensure basic web accessibility (WCAG AA): sufficient color contrast, black text for example, keyboard navigability for controls, ARIA attributes if needed, associated labels for controls.
+
     User Interface Guidelines:
-    - Organize controls logically in panels that can be minimized if needed
-    - Layout must balance information display with interactive elements:
-      - Provide clean separation between controls and visualization areas
-      - Ensure the simulation area dominates the screen space
-      - Use responsive design principles for different viewing contexts
-    
-    Interaction Requirements:
-    - Support parameter adjustment both during and before simulation runs
-    - Provide data export or snapshot capabilities where appropriate
-    - Include preset scenarios to demonstrate specific principles or situations
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without external libraries
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height
-    - Support both precise mouse interactions and touch controls where possible
-    
-    Build simulations with accurate underlying models that facilitate exploration and discovery.
+    Place primary control buttons logically (e.g., grouped at the top or bottom), clearly separated from the simulation area.
+    Maximize screen real estate for the simulation:
+    No self-generated page titles/headers.
+    Use CSS effectively for clean layout.
+    Fit well within an iframe: width: 100%, height: 90% (approx.), strictly no internal scrollbars.
+    Ensure a clear visual hierarchy and intuitive layout.
+
+    Language & Terminology:
+    Use clear, concise English.
+    Employ scientific terminology consistent with the Singapore MOE syllabus for the target level.
+
+    Platform & Compatibility:
+    Layout adapts reasonably to landscape and portrait orientations, maintaining usability.
 
   data_visualization_template: |
     
-    Create an interactive data visualization using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The visualization should:
-    
-    Based on this topic/dataset: { INSERT TOPIC/DATASET HERE }
-    The visualization should display the following data types:
-    - { INSERT DATA TYPES HERE }
-    The visualization allows users to filter or sort by:
-    - { INSERT FILTER/SORT OPTIONS HERE }
-    The visualization highlights these key relationships:
-    - { INSERT KEY RELATIONSHIPS HERE }
-    The visualization uses these chart types:
-    - { INSERT CHART TYPES HERE }
-    The visualization provides these interaction methods:
-    - { INSERT INTERACTION METHODS HERE }
-    
-    - Present data clearly with appropriate chart types and visual encodings
-    - Allow filtering, sorting, and exploration of the dataset
-    - Include interactive elements for highlighting relationships and patterns
-    - Provide context and explanations to help interpret the visualization
-    - Use appropriate color schemes, scales, and legends for clarity
-    
+    Objective:
+    Create a fully interactive, clear, and insightful data visualization using only HTML, CSS, and JavaScript (no external libraries). The output must be a single self-contained HTML file suitable for embedding within the Singapore Student Learning Space (SLS). The visualization should reveal patterns, trends, and relationships within the dataset in an intuitive, accessible manner.
+
+    Target Audience:
+    Students aged {5 to 11 or 12 to 18} years old.
+
+    Data & Content:
+
+    1. Topic / Dataset:
+    { INSERT TOPIC OR DESCRIPTION OF THE DATASET HERE, e.g., "Singapore Population Trends 1980-2020", "Energy Consumption by Sector", "Correlation between Rainfall and Crop Yield" }
+    (Specify if the data itself needs to be generated/simulated or if it will be provided/embedded).
+
+    2. Data Types Displayed:
+
+    { INSERT DATA TYPE 1 HERE, e.g., "Numerical (Population Count)" }
+    { INSERT DATA TYPE 2 HERE, e.g., "Categorical (Sector Name)" }
+    { INSERT DATA TYPE 3 HERE, e.g., "Temporal (Year)" }
+    { ... add more data types as needed ... }
+    3. Key Relationships/Patterns to Highlight:
+
+    { INSERT KEY RELATIONSHIP 1 HERE, e.g., "Growth trend over time" }
+    { INSERT KEY RELATIONSHIP 2 HERE, e.g., "Comparison between categories" }
+    { INSERT KEY RELATIONSHIP 3 HERE, e.g., "Correlation between Variable A and Variable B" }
+    { ... add more relationships as needed ... }
+
+    Visualization & Interaction:
+
+    4. Chart Types Used:
+
+    { INSERT CHART TYPE 1 HERE, e.g., "Line Chart", "Bar Chart", "Scatter Plot", "Map", "Pie Chart" }
+    { INSERT CHART TYPE 2 HERE }
+    { ... add more chart types as needed ... } (Choose chart types appropriate for the data and the relationships being highlighted).
+    5. User Filtering / Sorting Options:
+
+    { INSERT FILTER/SORT OPTION 1 HERE, e.g., "Filter by Year Range (Slider)" }
+    { INSERT FILTER/SORT OPTION 2 HERE, e.g., "Sort categories alphabetically/by value" }
+    { INSERT FILTER/SORT OPTION 3 HERE, e.g., "Select specific categories to display (Checkboxes)" }
+    { ... add more options as needed ... }
+    6. Interaction Methods:
+
+    { INSERT INTERACTION METHOD 1 HERE, e.g., "Hover/Touch on data points for tooltips with detailed info" }
+    { INSERT INTERACTION METHOD 2 HERE, e.g., "Click on legend items to toggle visibility" }
+    { INSERT INTERACTION METHOD 3 HERE, e.g., "Zooming/Panning on complex charts (e.g., maps, scatter plots)" }
+    { INSERT INTERACTION METHOD 4 HERE, e.g., "Brushing/Linking between multiple charts" }
+    { ... add more methods as needed ... }
+    ⚙️ Visualization Features & Principles:
+
+    Clarity & Accuracy: Present data clearly and accurately using appropriate visual encodings (position, length, color, shape). Use appropriate scales, axes, and legends.
+    Context & Interpretation: Provide necessary context, titles, axis labels, and potentially brief explanations or annotations to help users interpret the visualization correctly.
+    Interactivity: Allow users to actively explore the data through filtering, sorting, hovering, clicking, etc. (as specified in sections 5 & 6).
+    Highlighting: Use interactive elements or visual cues (e.g., color changes on hover) to emphasize the key relationships and patterns (section 3).
+    Color Schemes: Use clear, distinguishable, and potentially meaningful color schemes. Consider accessibility for color blindness.
+    ♿ Accessibility:
+
+    Ensure basic web accessibility (WCAG AA): sufficient color contrast (especially text and essential visual marks), keyboard navigability for controls and interactive elements, ARIA attributes for chart elements/controls if needed, textual alternatives or descriptions where appropriate.
     User Interface Guidelines:
-    - Place data controls and filters in a compact panel adjacent to the visualization
-    - Layout must prioritize the data display:
-      - Maximize the visualization area while keeping controls accessible
-      - Ensure clean, distraction-free presentation of data
-      - Support different screen orientations and sizes
-    
-    Interaction Requirements:
-    - Support hover/touch for detailed information on data points
-    - Provide options for different visualization perspectives
-    - Include export or sharing capabilities where appropriate
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without external libraries
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height
-    - Support both precise mouse interactions and touch gestures
-    
-    Design visualizations that reveal patterns, trends, and relationships within datasets in an intuitive, accessible manner.
+
+    Place data controls, filters, and legends logically, often in a compact panel adjacent to or overlaying the main visualization area, without obstructing key data.
+    Layout must prioritize the data display: maximize the visualization area while keeping controls accessible. Ensure a clean, distraction-free presentation.
+    Support different screen orientations and sizes where feasible.
+    Fit well within an iframe: width: 100%, height: 90% (approx.), strictly no internal scrollbars within the main visualization area.
+    Language & Terminology:
+
+    Use clear, concise English appropriate for the target audience.
+    Employ terminology consistent with the subject area and MOE syllabus.
+    Platform & Compatibility:
+
+    Support both precise mouse interactions (hover, click) and touch gestures (tap, potentially pinch-zoom if applicable).
+    Layout adapts reasonably to landscape and portrait orientations.
 
   drag_and_drop_template: |
     
-    Create an interactive drag-and-drop learning activity using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The activity should:
-    
-    Based on this topic: { INSERT TOPIC HERE }
-    The activity teaches these learning objectives:
-    - { INSERT LEARNING OBJECTIVES HERE }
-    The activity includes these draggable elements:
-    - { INSERT DRAGGABLE ELEMENTS HERE }
-    The activity includes these drop zones:
-    - { INSERT DROP ZONES HERE }
-    The activity provides these types of feedback:
-    - { INSERT FEEDBACK TYPES HERE }
-    The activity includes these levels or challenges:
-    - { INSERT LEVELS/CHALLENGES HERE }
-    
-    - Present clear learning objectives through thoughtfully designed drag interactions
-    - Include movable elements that can be sorted, matched, ordered, or placed
-    - Provide immediate feedback on correct and incorrect placements
-    - Use visual cues to indicate draggable items and drop zones
-    - Include reset, hint, and solution options to support learning
+    Objective:
+    Create a fully interactive, pedagogically sound, and engaging drag-and-drop learning activity using only HTML, CSS, and JavaScript (no external libraries). The output must be a single self-contained HTML file suitable for embedding within the Singapore Student Learning Space (SLS). The activity should facilitate learning through physical interaction for tasks like classification, sequencing, mapping, labeling, or assembly.
+
+    Target Audience:
+    Students aged {5 to 11 or 12 to 18} years old.
+
+    Educational Core:
+
+    1. Core Topic:
+    { INSERT TOPIC HERE, aligning with objectives and syllabus level, e.g., "Life Cycles", "Map of Ancient Civilizations", "Atomic Structure" }
+
+    2. Learning Objectives Taught/Reinforced:
+
+    { INSERT LEARNING OBJECTIVE 1 HERE, e.g., "Identify the stages of the butterfly life cycle" }
+    { INSERT LEARNING OBJECTIVE 2 HERE, e.g., "Correctly label the parts of a plant cell" }
+    { ... add more objectives as needed ... } (Objectives should be achievable through the drag-and-drop interaction).
+    Activity Core Requirements:
+
+    3. Draggable Elements:
+
+    { INSERT DRAGGABLE ELEMENT 1 DESCRIPTION HERE, e.g., "Image of a larva", "Text label: 'Nucleus'", "Icon representing 'Legislative Branch'" }
+    { INSERT DRAGGABLE ELEMENT 2 DESCRIPTION HERE }
+    { ... add more draggable elements as needed ... } (These are the items the user will move).
+    4. Drop Zones / Targets:
+
+    { INSERT DROP ZONE 1 DESCRIPTION HERE, e.g., "Box labeled 'Stage 2'", "Area on a diagram corresponding to the nucleus", "Category bin: 'Causes of WW1'" }
+    { INSERT DROP ZONE 2 DESCRIPTION HERE }
+    { ... add more drop zones as needed ... } (These are the areas where draggable elements should be placed).
+    5. Feedback Types Provided:
+
+    { INSERT FEEDBACK TYPE 1 HERE, e.g., "Immediate visual cue on correct drop (e.g., green border, snap-in-place)" }
+    { INSERT FEEDBACK TYPE 2 HERE, e.g., "Visual cue on incorrect drop (e.g., red flash, bounce back)" }
+    { INSERT FEEDBACK TYPE 3 HERE, e.g., "Audio feedback (optional, simple sounds for correct/incorrect)" }
+    { INSERT FEEDBACK TYPE 4 HERE, e.g., "Overall score/completion status update" }
+    { INSERT FEEDBACK TYPE 5 HERE, e.g., "Explanatory text feedback upon completion or incorrect attempt" } (Feedback should be immediate and clear).
+    6. Levels or Challenges (Optional):
+
+    { INSERT LEVEL/CHALLENGE 1 DESCRIPTION HERE, e.g., "Level 1: Match 5 simple terms" }
+    { INSERT LEVEL/CHALLENGE 2 DESCRIPTION HERE, e.g., "Level 2: Sequence 8 steps in a process" }
+    { DESCRIBE PROGRESSION IF APPLICABLE HERE, e.g., "Increasing number of items/zones", "Adding distractors" }
+    ⚙️ Activity Behavior & Features:
+
+    Interaction Design: Present clear learning objectives through thoughtfully designed drag interactions. Use visual cues (e.g., borders, shadows, icons) to clearly indicate draggable items and valid drop zones.
+    Drag Mechanics: Support smooth drag operations. Consider appropriate physics (e.g., snap-to-target, glide back if incorrect).
+    Feedback: Provide immediate and clear success/failure feedback (as specified in section 5) using animation, color changes, or optional sound.
+    Support Options: [Strongly Recommended] Include options like:
+    Reset: To start the activity over.
+    Hint: To guide the user if stuck (e.g., highlight the correct zone).
+    Check/Solution: To verify answers or reveal the correct placement after attempts.
+    Completion State: Clearly indicate when the activity is successfully completed.
+    Accessibility:
+
+    Ensure basic web accessibility (WCAG AA): sufficient color contrast, keyboard operability for drag-and-drop (e.g., using arrow keys and Enter/Space), ARIA attributes for roles and states, clear visual focus indicators.
+    User Interface Guidelines:
+
+    Clearly distinguish between draggable elements and target zones using visual styling.
+    Layout must support intuitive interaction: ensure ample space for drag operations, maintain clean organization of elements, use visual cues (shadows, highlights) for interaction states.
+    Fit well within an iframe: width: 100%, height: 90% (approx.), strictly no internal scrollbars.
+    Language & Terminology:
+
+    Use clear, concise English appropriate for the target age group.
+    Employ terminology consistent with the subject area and MOE syllabus.
+    Platform & Compatibility:
+    Optimize for both touch and mouse interactions with appropriate target sizes and interaction handling.
+    Layout adapts reasonably to landscape and portrait orientations.
+
+  SLS_Interactive_Suggestion_Template: |
+
+    Select the Knowledge Base that is the text of "Print-Friendly Worksheet" to provide context.
+
+    Objective:
+    Think outside the box: consider formats like a mini-game, choose-your-own-adventure, virtual lab, exploration quest, or simulation to reinforce learning.
+    Focus on creating active learning experiences where students explore, discover, and engage deeply with the lesson concept.
+    The experience should feel immersive, rewarding, and educational. 
+    Create a fully interactive, pedagogically sound, and engaging drag-and-drop learning activity using only HTML, CSS, and JavaScript (no external libraries). The output must be a single self-contained HTML file suitable for embedding within the Singapore Student Learning Space (SLS). The activity should facilitate learning through physical interaction for tasks like classification, sequencing, mapping, labeling, or assembly.
+
+
+    Ensure basic web accessibility (WCAG AA): sufficient color contrast, keyboard operability for drag-and-drop (e.g., using arrow keys and Enter/Space), ARIA attributes for roles and states, clear visual focus indicators.
     
     User Interface Guidelines:
-    - Clearly distinguish between draggable elements and target zones
-    - Layout must support intuitive interaction:
-      - Ensure ample space for drag operations
-      - Use visual cues like shadows or highlights to indicate interaction state
-      - Maintain clean organization of draggable elements
+
+    Clearly distinguish between draggable elements and target zones using visual styling.
+    Layout must support intuitive interaction: ensure ample space for drag operations, maintain clean organization of elements, use visual cues (shadows, highlights) for interaction states.
+    Fit well within an iframe: width: 100%, height: 90% (approx.), strictly no internal scrollbars.
     
-    Interaction Requirements:
-    - Support smooth drag operations with appropriate physics (snap, glide)
-    - Provide clear success/failure feedback through animation, sound, or color
-    - Include progressive levels or challenges where appropriate
-    
+    Language & Terminology:
+
+    Use clear, concise English appropriate for the target age group.
+    Employ terminology consistent with the subject area and MOE syllabus.
+
     Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without external libraries
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height
-    - Optimize for both touch and mouse interactions with appropriate target sizes
-    
-    Design activities for classification, sequencing, mapping, and assembly tasks that build understanding through physical interaction.
+    -The HTML file must run entirely offline, without external libraries
+    -Ensure it fits well within an iframe environment, using 100% width and 90% height
+    -Optimize for both touch and mouse interactions with appropriate target sizes
+
 
     
     
