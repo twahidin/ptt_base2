@@ -53,7 +53,7 @@ def create_recipe_carousel(recipe_templates):
                 font-weight: 600;
                 font-size: 1.1rem;
                 margin-bottom: 8px;
-                color: #e2e8f0;
+                color: #ffff00;
             }
             .recipe-preview {
                 font-size: 0.9rem;
@@ -124,7 +124,7 @@ def create_recipe_carousel(recipe_templates):
         """),
         
         # Carousel HTML structure
-        H3("HTML5 Template Library", cls="text-lg font-bold mb-4"),
+        H3("HTML5 Template Library", cls="text-lg font-bold mb-4 text-blue-500"),
         Div(
             # Previous button
             Button(
@@ -246,7 +246,7 @@ def create_file_uploader(index=0, tab_prefix="gen"):
         Input(type="hidden", id=f"{tab_prefix}-image-data-{index}", name=f"image-data-{index}"),
         
         # Title for each uploader
-        H4(f"Image {index+1}", cls="text-lg font-semibold mb-2 text-blue-300"),
+        H4(f"Image {index+1}", cls="text-lg font-semibold mb-2 text-yellow-300"),
         
         # The file input with improved styling
         Label(
@@ -770,14 +770,14 @@ def create_html5_form(api_key=None):
         # Include TinyMCE script
         Script(src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js", referrerpolicy="origin"),
         
-        H2("HTML5 Interactive Editor", cls="text-center text-xl font-bold mb-4"),
+        H2("HTML5 Interactive Editor", cls="text-center text-xl font-bold mb-4 text-green-400 drop-shadow-md"),
         
         # Preview area with increased height
         Div(
-            H3("Preview", cls="text-lg font-semibold mb-2"),
+            H3("Preview", cls="text-lg font-semibold mb-2 text-blue-500"),
             Div(
                 Div("Your HTML5 content will appear here",
-                    cls="flex items-center justify-center h-full text-gray-400"),
+                    cls="flex items-center justify-center h-full text-yellow-500"),
                 id="preview-container",
                 cls="preview-frame",
                 hx_swap="innerHTML",
@@ -814,7 +814,7 @@ def create_html5_form(api_key=None):
                     
                     # Model selector
                     Div(
-                        Label("Model:", cls="block mb-2"),
+                        Label("Model:", cls="block mb-2 text-green-500"),
                         Select(
                             Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
                             Option("GPT-4.5", value="gpt-4.5-preview"),
@@ -835,7 +835,7 @@ def create_html5_form(api_key=None):
                     
                     # Rich Text Editor for prompt
                     Div(
-                        Label("HTML5 Prompt:", cls="block mb-2"),
+                        Label("HTML5 Prompt:", cls="block mb-2 text-blue-500 text-xl"),
                         # Basic textarea for initial render and as fallback
                         Textarea("", 
                               id='prompt', 
@@ -848,7 +848,7 @@ def create_html5_form(api_key=None):
                     
                     # File upload section - simplified to basic file inputs
                     Div(
-                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2"),
+                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2 text-blue-500"),
                         P("Upload images to be used as references in your interactive content", 
                           cls="text-sm text-gray-400 mb-4"),
                         
@@ -863,7 +863,7 @@ def create_html5_form(api_key=None):
                            hx_post="/api/html5/generate-code",
                            hx_target="#code-editors-container",
                            hx_indicator="#loading-indicator",
-                           cls="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
+                           cls="w-full py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
                     
                     id="html5-form",
                     enctype="multipart/form-data",
@@ -883,7 +883,7 @@ def create_html5_form(api_key=None):
                     
                     # Model selector
                     Div(
-                        Label("Model:", cls="block mb-2"),
+                        Label("Model:", cls="block mb-2 text-green-500"),
                         Select(
                             Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
                             Option("GPT-4.5", value="gpt-4.5-preview"),
@@ -1019,7 +1019,7 @@ def create_html5_form(api_key=None):
                     
                     # File upload section - simplified to basic file inputs
                     Div(
-                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2"),
+                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2 text-blue-500"),
                         P("Upload images to be used as references in your refinement", 
                           cls="text-sm text-gray-400 mb-4"),
                         
@@ -1048,7 +1048,7 @@ def create_html5_form(api_key=None):
             Div(
                 # Loading indicator
                 Div(
-                    P("Generating HTML5 content... Please wait."),
+                    P("Generating HTML5 content... Please wait.", cls="text-green-500"),
                     Div(cls="loading-spinner"),
                     id="loading-indicator",
                     cls="htmx-indicator text-center"
@@ -1141,18 +1141,198 @@ def create_html5_form(api_key=None):
                     # Container for ZIP download link (initially empty)
                     Div(id="zip-download-container", cls="mt-6 w-full"),
                     
-                    # Add a style to remove all borders
-                    Style("""
-                    #editor-buttons, #editor-buttons-container, #editor-buttons * {
-                      border: none !important;
-                      outline: none !important;
-                      box-shadow: none !important;
-                    }
-                    """),
+                    # ZIP Upload Section - moved below the buttons
+                    Div(
+                        H3("Import Content from ZIP", cls="block text-lg mb-2 text-green-500"),
+                        P("Upload a ZIP file containing HTML, CSS, and JavaScript files to import", 
+                          cls="text-sm text-gray-400 mb-3"),
+                        
+                        Form(
+                            Div(
+                                Label("Select ZIP File:", cls="block mb-2 text-sm text-yellow-500"),
+                                Input(
+                                    type="file", 
+                                    name="zipfile", 
+                                    accept=".zip",
+                                    cls="w-full p-2 border rounded bg-gray-800 text-white"
+                                ),
+                                cls="mb-3"
+                            ),
+                            Button(
+                                Div(
+                                    Svg(
+                                        Path(d="M5 8h14M12 4v8m-4 4h8m-10 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", stroke="currentColor", stroke_width="2", fill="none"),
+                                        viewBox="0 0 24 24", 
+                                        width="20", 
+                                        height="20",
+                                        cls="mr-2"
+                                    ),
+                                    "Upload ZIP & Import Content",
+                                    cls="flex items-center justify-center w-full"
+                                ),
+                                type="submit",
+                                hx_post="/api/html5/upload-zip",
+                                hx_target="#code-editors-container",
+                                hx_indicator="#loading-indicator",
+                                hx_encoding="multipart/form-data",
+                                cls="w-full py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded hover:shadow-lg transition-all duration-300"
+                            ),
+                            P(
+                                "Tip: Upload a ZIP file that was previously downloaded from this tool for best results.",
+                                cls="text-xs text-gray-400 mt-2"
+                            ),
+                            enctype="multipart/form-data",
+                            id="zip-upload-form",
+                            method="post",
+                            action="/api/html5/upload-zip",
+                            cls="p-3 border border-gray-700 rounded bg-gray-800"
+                        ),
+                        
+                        # Add JavaScript for handling ZIP file upload validation
+                        Script("""
+                            // Add validation for ZIP file upload
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const zipFileInput = document.querySelector('input[name="zipfile"]');
+                                const zipUploadForm = document.getElementById('zip-upload-form');
+                                
+                                if (zipFileInput && zipUploadForm) {
+                                    // Add file change event listener for validation
+                                    zipFileInput.addEventListener('change', function(e) {
+                                        const file = e.target.files[0];
+                                        const feedbackDiv = document.getElementById('zip-upload-feedback');
+                                        
+                                        // Remove any existing feedback
+                                        if (feedbackDiv) {
+                                            feedbackDiv.remove();
+                                        }
+                                        
+                                        // Create new feedback element
+                                        const newFeedback = document.createElement('div');
+                                        newFeedback.id = 'zip-upload-feedback';
+                                        
+                                        if (file) {
+                                            // Validate file extension
+                                            if (!file.name.toLowerCase().endsWith('.zip')) {
+                                                newFeedback.className = 'text-red-400 text-sm mt-2';
+                                                newFeedback.textContent = 'Please select a ZIP file (.zip)';
+                                                zipFileInput.value = ''; // Clear the input
+                                            } else {
+                                                newFeedback.className = 'text-green-400 text-sm mt-2';
+                                                newFeedback.textContent = 'ZIP file selected: ' + file.name;
+                                            }
+                                        }
+                                        
+                                        // Add feedback after file input
+                                        zipFileInput.parentNode.appendChild(newFeedback);
+                                    });
+                                    
+                                    // Form submission handling for better feedback
+                                    zipUploadForm.addEventListener('submit', function(e) {
+                                        // Prevent default behavior so we can handle it manually
+                                        e.preventDefault();
+                                        
+                                        const file = zipFileInput.files[0];
+                                        
+                                        // Validate file is selected
+                                        if (!file) {
+                                            // Show error feedback
+                                            const feedbackDiv = document.getElementById('zip-upload-feedback');
+                                            if (feedbackDiv) {
+                                                feedbackDiv.remove();
+                                            }
+                                            
+                                            const newFeedback = document.createElement('div');
+                                            newFeedback.id = 'zip-upload-feedback';
+                                            newFeedback.className = 'text-red-400 text-sm mt-2';
+                                            newFeedback.textContent = 'Please select a ZIP file first';
+                                            zipFileInput.parentNode.appendChild(newFeedback);
+                                            
+                                            return false;
+                                        }
+                                        
+                                        // Validate it's a ZIP file
+                                        if (!file.name.toLowerCase().endsWith('.zip')) {
+                                            // Show error feedback
+                                            const feedbackDiv = document.getElementById('zip-upload-feedback');
+                                            if (feedbackDiv) {
+                                                feedbackDiv.remove();
+                                            }
+                                            
+                                            const newFeedback = document.createElement('div');
+                                            newFeedback.id = 'zip-upload-feedback';
+                                            newFeedback.className = 'text-red-400 text-sm mt-2';
+                                            newFeedback.textContent = 'Please select a valid ZIP file (.zip)';
+                                            zipFileInput.parentNode.appendChild(newFeedback);
+                                            
+                                            return false;
+                                        }
+                                        
+                                        // Show loading state
+                                        document.getElementById('loading-indicator').style.display = 'block';
+                                        
+                                        // Create form data manually
+                                        const formData = new FormData();
+                                        formData.append('zipfile', file);
+                                        
+                                        // Use fetch API for more control
+                                        fetch('/api/html5/upload-zip', {
+                                            method: 'POST',
+                                            body: formData,
+                                            // Let the browser set the correct Content-Type with boundary
+                                        })
+                                        .then(response => response.text())
+                                        .then(html => {
+                                            // Update editor container
+                                            const editorContainer = document.getElementById('code-editors-container');
+                                            if (editorContainer) {
+                                                editorContainer.innerHTML = html;
+                                                
+                                                // Trigger htmx:afterSwap event for compatibility
+                                                const event = new CustomEvent('htmx:afterSwap', {
+                                                    detail: { target: editorContainer }
+                                                });
+                                                document.dispatchEvent(event);
+                                            }
+                                            
+                                            // Hide loading indicator
+                                            document.getElementById('loading-indicator').style.display = 'none';
+                                        })
+                                        .catch(error => {
+                                            console.error('Error uploading ZIP:', error);
+                                            
+                                            // Show error message
+                                            const editorContainer = document.getElementById('code-editors-container');
+                                            if (editorContainer) {
+                                                editorContainer.innerHTML = `
+                                                    <div class="bg-red-800 text-white p-2 mb-4 rounded">
+                                                        Error uploading ZIP file: ${error.message || 'Unknown error'}
+                                                    </div>
+                                                `;
+                                            }
+                                            
+                                            // Hide loading indicator
+                                            document.getElementById('loading-indicator').style.display = 'none';
+                                        });
+                                    });
+                                }
+                            });
+                        """),
+                        
+                        cls="mt-6 p-4 border border-gray-700 rounded bg-gray-800 max-w-2xl mx-auto"
+                    ),
                     
                     id="editor-buttons",
                     cls="mt-6 border-0 outline-none shadow-none"
                 ),
+                
+                # Add a style to remove all borders
+                Style("""
+                #editor-buttons, #editor-buttons-container, #editor-buttons * {
+                  border: none !important;
+                  outline: none !important;
+                  box-shadow: none !important;
+                }
+                """),
                 
                 cls="mt-4"
             ),

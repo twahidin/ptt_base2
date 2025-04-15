@@ -180,7 +180,7 @@ def create_side_menu(active_menu=None):
         #("menuA", "Leonardo AI Generator"),
         #("menuB", "Stability AI Generator"),
         #("menuC", "Stability AI Video Generator"),
-        ("menuD", "HTML 5 Generator")
+        ("menuD", "HTML5 Interactive Editor"),
         #("menuE", "Lea Chatbot"),
         #("tokens", "Token Usage Monitoring"),
     ]
@@ -223,7 +223,7 @@ def get():
 @rt("/menuD")
 def get():
     return Div(
-        H2("HTML 5 Generator"),
+        H2("HTML5 Interactive Editor"),
         P("This is the HTML 5 Generator content area."),
         cls="menu-content"
     )

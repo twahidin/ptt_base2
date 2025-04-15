@@ -428,7 +428,7 @@ def routes(rt):
             has_previous = 'previous' in GLOBAL_CODE_STORAGE[user_id]
             print(f"Storage state: has_current={has_current}, has_previous={has_previous}")
         
-        return Titled("HTML5 Project",
+        return Titled("",
             Link(rel="stylesheet", href="static/css/styles.css"),
             create_html5_form(api_key)
         )
@@ -1511,6 +1511,404 @@ def routes(rt):
             return Div(
                 f"Error: {str(e)}",
                 cls="error alert alert-danger p-4"
+            )
+
+    @rt('/api/html5/upload-zip')
+    async def post(req):
+        """Handle uploaded ZIP file and extract HTML, CSS, and JS content"""
+        try:
+            # Get user ID from session for storage
+            user_id = req.session.get('auth', 'anonymous')
+            print(f"\n----- UPLOAD ZIP DEBUG -----")
+            print(f"Processing ZIP upload for user {user_id}")
+            
+            # Get the form data
+            form = await req.form()
+            
+            # Enhanced debugging of form data
+            print(f"Form data keys: {list(form.keys())}")
+            print(f"Form data types:")
+            for key in form.keys():
+                value = form.get(key)
+                print(f"  Key: {key}, Type: {type(value)}, Value preview: {str(value)[:100] if isinstance(value, str) else 'non-string'}")
+            
+            # Get the uploaded file from form data
+            upload_file = form.get('zipfile')
+            if not upload_file:
+                # If zipfile not found, try checking other keys
+                print("No 'zipfile' key found, checking if other keys contain file data")
+                for key in form.keys():
+                    value = form.get(key)
+                    if hasattr(value, 'filename') or isinstance(value, bytes):
+                        print(f"Found potential file data in key: {key}")
+                        upload_file = value
+                        break
+                
+                if not upload_file:
+                    return Div(
+                        "Error: No file uploaded. Please select a ZIP file.",
+                        cls="bg-red-800 text-white p-2 mb-4 rounded"
+                    )
+            
+            # Debug the upload_file type
+            print(f"Upload file type: {type(upload_file)}")
+            
+            # Debug more file info
+            if hasattr(upload_file, 'filename'):
+                print(f"File name: {upload_file.filename}")
+            if hasattr(upload_file, 'content_type'):
+                print(f"Content type: {upload_file.content_type}")
+            
+            # Check if we have actual form file data
+            try:
+                # Get the file content
+                if isinstance(upload_file, bytes):
+                    # Already bytes, use directly
+                    content = upload_file
+                    print(f"Using raw bytes: {len(content)} bytes")
+                elif hasattr(upload_file, 'read'):
+                    # File-like object with read method
+                    content = await upload_file.read()
+                    print(f"Read content using read() method: {len(content)} bytes")
+                elif isinstance(upload_file, str):
+                    if upload_file.startswith('data:'):
+                        # Base64 data URL
+                        try:
+                            parts = upload_file.split(',', 1)
+                            if len(parts) == 2 and ';base64,' in parts[0]:
+                                content = base64.b64decode(parts[1])
+                                print(f"Decoded base64 data: {len(content)} bytes")
+                            else:
+                                raise ValueError("Invalid data URL format")
+                        except Exception as e:
+                            print(f"Error decoding base64: {e}")
+                            return Div(f"Error decoding base64 data: {str(e)}", cls="bg-red-800 text-white p-2 mb-4 rounded")
+                    elif os.path.exists(upload_file):
+                        # File path
+                        with open(upload_file, 'rb') as f:
+                            content = f.read()
+                        print(f"Read from file path: {len(content)} bytes")
+                    else:
+                        # Try to encode the string as bytes
+                        try:
+                            # Try UTF-8 first
+                            content = upload_file.encode('utf-8')
+                            print(f"Encoded string as UTF-8: {len(content)} bytes")
+                        except UnicodeError:
+                            # Fall back to latin1 which can encode any string
+                            content = upload_file.encode('latin1')
+                            print(f"Encoded string as latin1: {len(content)} bytes")
+                else:
+                    print(f"Unsupported upload_file type: {type(upload_file)}")
+                    return Div(f"Error: Unsupported file type. Expected file upload.", cls="bg-red-800 text-white p-2 mb-4 rounded")
+                
+                # Debug: dump first 100 bytes as hex for inspection
+                print(f"First 100 bytes: {content[:100].hex()}")
+                
+                # Check if it's a valid ZIP file
+                # Proper way to test if data is a valid ZIP file
+                try:
+                    # Create a BytesIO object from the content
+                    content_stream = io.BytesIO(content)
+                    
+                    # Try to open it as a ZIP file
+                    with zipfile.ZipFile(content_stream) as zf:
+                        # List all files to verify it's valid
+                        file_list = zf.namelist()
+                        print(f"Valid ZIP file with {len(file_list)} files: {file_list[:10]}")
+                except zipfile.BadZipFile as e:
+                    print(f"Not a valid ZIP file: {e}")
+                    return Div(
+                        "Error: The uploaded file is not a valid ZIP file. Please upload a ZIP file containing HTML, CSS, and JS content.",
+                        cls="bg-red-800 text-white p-2 mb-4 rounded"
+                    )
+                except Exception as e:
+                    print(f"Error validating ZIP: {e}")
+                    return Div(f"Error validating ZIP file: {str(e)}", cls="bg-red-800 text-white p-2 mb-4 rounded")
+                
+            except Exception as e:
+                print(f"Error reading file: {e}")
+                import traceback
+                print(traceback.format_exc())
+                return Div(f"Error reading uploaded file: {str(e)}", cls="bg-red-800 text-white p-2 mb-4 rounded")
+            
+            # Create a file-like object from the content
+            zip_file = io.BytesIO(content)
+            
+            # Open the ZIP file
+            html_content = ""
+            css_content = ""
+            js_content = ""
+            html_content_raw = ""
+            
+            try:
+                with zipfile.ZipFile(zip_file) as zf:
+                    # List all files in the ZIP
+                    file_list = zf.namelist()
+                    print(f"Files in ZIP: {file_list}")
+                    
+                    # Filter files by extension
+                    html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
+                    css_files = [f for f in file_list if f.lower().endswith('.css')]
+                    js_files = [f for f in file_list if f.lower().endswith('.js')]
+                    
+                    print(f"Found files by type - HTML: {html_files}, CSS: {css_files}, JS: {js_files}")
+                    
+                    # Extract content from HTML file (prioritize index.html or similar)
+                    priority_html_names = ['index.html', 'main.html', 'default.html', 'home.html']
+                    html_file = None
+                    
+                    # First try priority files
+                    for priority_name in priority_html_names:
+                        if priority_name in html_files:
+                            html_file = priority_name
+                            print(f"Using priority HTML file: {html_file}")
+                            break
+                            
+                    # If no priority file found, use the first HTML file
+                    if not html_file and html_files:
+                        html_file = html_files[0]
+                        print(f"Using first available HTML file: {html_file}")
+                    
+                    if html_file:
+                        try:
+                            html_content_raw = zf.read(html_file).decode('utf-8')
+                            print(f"Read HTML file: {html_file} ({len(html_content_raw)} bytes)")
+                            
+                            # Extract the body content from the HTML file
+                            body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content_raw, re.DOTALL | re.IGNORECASE)
+                            if body_match:
+                                html_content = body_match.group(1).strip()
+                                print(f"Extracted body content: {len(html_content)} chars")
+                            else:
+                                # If no body tags, try a broader approach to extract the main content
+                                # Look for a div with id="content" or similar
+                                content_div_match = re.search(r'<div[^>]*id=["\'](content|main|container|app)["\'][^>]*>(.*?)</div>', 
+                                                           html_content_raw, re.DOTALL | re.IGNORECASE)
+                                if content_div_match:
+                                    html_content = content_div_match.group(2).strip()
+                                    print(f"Extracted content from main div: {len(html_content)} chars")
+                                else:
+                                    # If no specific content found, extract everything between <html> and </html>
+                                    html_match = re.search(r'<html[^>]*>(.*?)</html>', html_content_raw, re.DOTALL | re.IGNORECASE)
+                                    if html_match:
+                                        # Remove <head> section if present
+                                        html_content = re.sub(r'<head>.*?</head>', '', html_match.group(1), flags=re.DOTALL | re.IGNORECASE)
+                                        # Remove any remaining script and style tags
+                                        html_content = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
+                                        html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
+                                        html_content = html_content.strip()
+                                        print(f"Extracted content from html tags: {len(html_content)} chars")
+                                    else:
+                                        # Last resort: use the whole content
+                                        html_content = html_content_raw
+                                        print(f"Using full HTML file content: {len(html_content)} chars")
+                        except UnicodeDecodeError:
+                            # Try different encodings if UTF-8 fails
+                            for encoding in ['latin1', 'cp1252', 'iso-8859-1']:
+                                try:
+                                    html_content_raw = zf.read(html_file).decode(encoding)
+                                    # If successful, extract content as above
+                                    body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content_raw, re.DOTALL | re.IGNORECASE)
+                                    if body_match:
+                                        html_content = body_match.group(1).strip()
+                                    else:
+                                        html_content = html_content_raw
+                                    print(f"Decoded HTML using {encoding}: {len(html_content)} chars")
+                                    break
+                                except UnicodeDecodeError:
+                                    continue
+                    
+                    # Extract content from CSS files (prioritize styles.css or similar)
+                    priority_css_names = ['styles.css', 'style.css', 'main.css', 'default.css']
+                    css_file = None
+                    
+                    # First try priority files
+                    for priority_name in priority_css_names:
+                        if priority_name in css_files:
+                            css_file = priority_name
+                            print(f"Using priority CSS file: {css_file}")
+                            break
+                            
+                    # If no priority file found, use the first CSS file
+                    if not css_file and css_files:
+                        css_file = css_files[0]
+                        print(f"Using first available CSS file: {css_file}")
+                    
+                    if css_file:
+                        try:
+                            css_content = zf.read(css_file).decode('utf-8')
+                            print(f"Read CSS file: {css_file} ({len(css_content)} bytes)")
+                        except UnicodeDecodeError:
+                            # Try different encodings if UTF-8 fails
+                            for encoding in ['latin1', 'cp1252', 'iso-8859-1']:
+                                try:
+                                    css_content = zf.read(css_file).decode(encoding)
+                                    print(f"Decoded CSS using {encoding}: {len(css_content)} chars")
+                                    break
+                                except UnicodeDecodeError:
+                                    continue
+                    
+                    # Extract content from JS files (prioritize script.js or similar)
+                    priority_js_names = ['script.js', 'main.js', 'index.js', 'app.js']
+                    js_file = None
+                    
+                    # First try priority files
+                    for priority_name in priority_js_names:
+                        if priority_name in js_files:
+                            js_file = priority_name
+                            print(f"Using priority JS file: {js_file}")
+                            break
+                            
+                    # If no priority file found, use the first JS file
+                    if not js_file and js_files:
+                        js_file = js_files[0]
+                        print(f"Using first available JS file: {js_file}")
+                    
+                    if js_file:
+                        try:
+                            js_content = zf.read(js_file).decode('utf-8')
+                            print(f"Read JS file: {js_file} ({len(js_content)} bytes)")
+                        except UnicodeDecodeError:
+                            # Try different encodings if UTF-8 fails
+                            for encoding in ['latin1', 'cp1252', 'iso-8859-1']:
+                                try:
+                                    js_content = zf.read(js_file).decode(encoding)
+                                    print(f"Decoded JS using {encoding}: {len(js_content)} chars")
+                                    break
+                                except UnicodeDecodeError:
+                                    continue
+                    
+                    # If we didn't find the files by name, try alternative approaches
+                    # Check if CSS is embedded in HTML
+                    if not css_content and html_content_raw:
+                        style_tags = re.findall(r'<style[^>]*>(.*?)</style>', html_content_raw, re.DOTALL | re.IGNORECASE)
+                        if style_tags:
+                            css_content = '\n\n'.join(style_tags)
+                            print(f"Extracted CSS from HTML style tags: {len(css_content)} chars")
+                            
+                    # Check if JS is embedded in HTML
+                    if not js_content and html_content_raw:
+                        script_tags = re.findall(r'<script[^>]*>(.*?)</script>', html_content_raw, re.DOTALL | re.IGNORECASE)
+                        if script_tags:
+                            # Filter out empty scripts and those with src attributes
+                            valid_scripts = [script for script in script_tags 
+                                            if script.strip() and not re.search(r'<script[^>]*src=', script)]
+                            if valid_scripts:
+                                js_content = '\n\n'.join(valid_scripts)
+                                print(f"Extracted JS from HTML script tags: {len(js_content)} chars")
+                                
+                    # Check for CSS in external files referenced in HTML
+                    if not css_content and html_content_raw:
+                        link_tags = re.findall(r'<link[^>]*href=["\'](.*?)["\'][^>]*>', html_content_raw, re.IGNORECASE)
+                        css_links = [link for link in link_tags if link.lower().endswith('.css')]
+                        for css_link in css_links:
+                            if css_link in file_list:
+                                try:
+                                    css_content = zf.read(css_link).decode('utf-8')
+                                    print(f"Read CSS from linked file: {css_link} ({len(css_content)} bytes)")
+                                    break
+                                except Exception as e:
+                                    print(f"Error reading linked CSS file {css_link}: {e}")
+                                
+                    # Check for JS in external files referenced in HTML
+                    if not js_content and html_content_raw:
+                        script_srcs = re.findall(r'<script[^>]*src=["\'](.*?)["\'][^>]*>', html_content_raw, re.IGNORECASE)
+                        js_links = [src for src in script_srcs if src.lower().endswith('.js')]
+                        for js_link in js_links:
+                            if js_link in file_list:
+                                try:
+                                    js_content = zf.read(js_link).decode('utf-8')
+                                    print(f"Read JS from script src: {js_link} ({len(js_content)} bytes)")
+                                    break
+                                except Exception as e:
+                                    print(f"Error reading linked JS file {js_link}: {e}")
+            except Exception as e:
+                print(f"Error extracting ZIP contents: {e}")
+                import traceback
+                print(traceback.format_exc())
+                return Div(
+                    f"Error extracting ZIP contents: {str(e)}",
+                    cls="bg-red-800 text-white p-2 mb-4 rounded"
+                )
+                
+            # Check if we have HTML content after all extraction attempts
+            if not html_content:
+                return Div(
+                    "Error: No HTML content could be extracted from the ZIP file. Please ensure your ZIP contains an HTML file with valid content.",
+                    cls="bg-red-800 text-white p-2 mb-4 rounded"
+                )
+            
+            # Store the extracted content
+            # Check if we need to save the previous state
+            if user_id in GLOBAL_CODE_STORAGE and 'current' in GLOBAL_CODE_STORAGE[user_id]:
+                print(f"\n----- UPLOAD SAVING PREVIOUS STATE -----")
+                print(f"Saving previous content for user {user_id}")
+                current = GLOBAL_CODE_STORAGE[user_id]['current']
+                GLOBAL_CODE_STORAGE[user_id]['previous'] = dict(current)
+                print("Saved current state as previous")
+            
+            # Initialize user storage if needed
+            if user_id not in GLOBAL_CODE_STORAGE:
+                GLOBAL_CODE_STORAGE[user_id] = {}
+            
+            # Update current state with the extracted content
+            GLOBAL_CODE_STORAGE[user_id]['current'] = {
+                'html': html_content,
+                'css': css_content,
+                'js': js_content
+            }
+            
+            # Save to session as well for compatibility
+            req.session['html'] = html_content
+            req.session['css'] = css_content
+            req.session['js'] = js_content
+            
+            print(f"Stored extracted content in global storage and session")
+            
+            # Create a success message
+            success_message = Div(
+                "ZIP file successfully uploaded and content extracted",
+                cls="bg-green-800 text-white p-2 mb-4 rounded"
+            )
+            
+            # Return the success message and code editors with the extracted content
+            return [
+                success_message,
+                create_code_editors(html_content, css_content, js_content),
+                NotStr(f"""
+                <script>
+                    // Show buttons
+                    const runButton = document.getElementById('run-preview-button');
+                    const clearButton = document.getElementById('clear-button');
+                    const zipButton = document.getElementById('create-zip-button');
+                    const previousButton = document.getElementById('previous-interactive-button');
+                    
+                    if (runButton) runButton.classList.remove('hidden');
+                    if (clearButton) clearButton.classList.remove('hidden');
+                    if (zipButton) zipButton.classList.remove('hidden');
+                    if (previousButton) previousButton.classList.remove('hidden');
+                    
+                    // Auto-trigger preview
+                    setTimeout(function() {{
+                        if (runButton) {{
+                            runButton.click();
+                        }}
+                    }}, 300);
+                </script>
+                """)
+            ]
+            
+        except Exception as e:
+            print(f"Error in upload-zip route: {str(e)}")
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error details: {error_details}")
+            
+            return Div(
+                f"Error processing ZIP file: {str(e)}",
+                Pre(error_details, cls="text-xs mt-2"),
+                cls="bg-red-800 text-white p-2 mb-4 rounded"
             )
 
 async def generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js):
