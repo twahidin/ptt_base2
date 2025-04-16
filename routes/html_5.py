@@ -39,6 +39,10 @@ else:
     os.environ["ANTHROPIC_API_KEY"] = os.getenv("ANTHROPIC_API_KEY")
 
 
+
+
+
+
 def extract_components(code):
     """Extract HTML, CSS, and JavaScript components from the generated code"""
     try:
@@ -1061,7 +1065,7 @@ def routes(rt):
             
             # Generate new code
             try:
-                html, css, js = await generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js)
+                html, css, js = await generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js, user_id=user_id, session_id=req.session.session_id if hasattr(req.session, 'session_id') else None)
                 print(f"Successfully generated code - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
                 
                 # If in iterative mode and no content was returned, return an error
@@ -1365,7 +1369,7 @@ def routes(rt):
             
             # Generate refined code
             try:
-                html, css, js = await generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js)
+                html, css, js = await generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js, user_id=user_id, session_id=req.session.session_id if hasattr(req.session, 'session_id') else None)
                 print(f"Successfully refined code - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
                 
                 # If no content was returned, return an error
@@ -1911,9 +1915,12 @@ def routes(rt):
                 cls="bg-red-800 text-white p-2 mb-4 rounded"
             )
 
-async def generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js):
+async def generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js, user_id="anonymous", session_id=None):
     """Generate HTML5 code using the specified model"""
     try:
+        # Start timing the generation
+        start_time = datetime.datetime.now()
+        
         # Get API keys
         openai_key = os.environ["OPENAI_API_KEY"]
         anthropic_key = os.environ["ANTHROPIC_API_KEY"]
@@ -2020,9 +2027,8 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             
         # print(f"System prompt: {system_prompt}")
         
-        # Get user ID from session for token tracking
-        user_id = "anonymous"  # Default user ID
-        session_id = None
+        # User ID and session ID are now passed as parameters
+        # No need to set user_id = "anonymous" here anymore
         
         # Determine which AI service to use based on the model
         if model.startswith("claude"):
@@ -2154,20 +2160,25 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                         
                         # If we have valid HTML, CSS and JS from tool use, return the components
                         if tool_use_found and html and (css or True) and js:  # CSS is optional
-                            # # Record token usage
-                            # completion_tokens = response.usage.output_tokens
-                            # total_tokens = prompt_tokens + completion_tokens
+                            # Record token usage
+                            completion_tokens = response.usage.output_tokens
+                            total_tokens = prompt_tokens + completion_tokens
                             
-                            # # Save token usage to database
-                            # token_count.record_token_usage(
-                            #     model=model,
-                            #     prompt=prompt[:500] if prompt else None,
-                            #     prompt_tokens=prompt_tokens,
-                            #     completion_tokens=completion_tokens,
-                            #     total_tokens=total_tokens,
-                            #     user_id=user_id,
-                            #     session_id=session_id
-                            # )
+                            # Calculate generation time
+                            end_time = datetime.datetime.now()
+                            generation_time_ms = (end_time - start_time).total_seconds() * 1000
+                            
+                            # Save token usage to database
+                            token_count.record_token_usage(
+                                model=model,
+                                prompt=prompt if prompt else None,
+                                prompt_tokens=prompt_tokens,
+                                completion_tokens=completion_tokens,
+                                total_tokens=total_tokens,
+                                user_id=user_id,
+                                session_id=session_id,
+                                generation_time_ms=generation_time_ms
+                            )
                             
                             return html, css, js
                         
@@ -2186,6 +2197,21 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                     
                     # Extract components using regex as fallback
                     html, css, js = extract_components(code)
+                    
+                    # Record token usage
+                    completion_tokens = response.usage.output_tokens
+                    total_tokens = prompt_tokens + completion_tokens
+                    
+                    # Save token usage to database
+                    token_count.record_token_usage(
+                        model=model,
+                        prompt=prompt if prompt else None,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                        user_id=user_id,
+                        session_id=session_id
+                    )
                     
                     # If JavaScript is missing or empty, try to obtain it from elsewhere in the response
                     if not js:
@@ -2312,15 +2338,20 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                             completion_tokens = response.usage.completion_tokens
                             total_tokens = response.usage.total_tokens
                             
+                            # Calculate generation time
+                            end_time = datetime.datetime.now()
+                            generation_time_ms = (end_time - start_time).total_seconds() * 1000
+                            
                             # Save token usage to database
                             token_count.record_token_usage(
                                 model=model,
-                                prompt=prompt[:500] if prompt else None,
+                                prompt=prompt if prompt else None,
                                 prompt_tokens=prompt_tokens,
                                 completion_tokens=completion_tokens,
                                 total_tokens=total_tokens,
                                 user_id=user_id,
-                                session_id=session_id
+                                session_id=session_id,
+                                generation_time_ms=generation_time_ms
                             )
                             
                             # If JavaScript is missing or empty, try to extract from regular content
@@ -2343,15 +2374,20 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                     completion_tokens = response.usage.completion_tokens
                     total_tokens = response.usage.total_tokens
                     
+                    # Calculate generation time
+                    end_time = datetime.datetime.now()
+                    generation_time_ms = (end_time - start_time).total_seconds() * 1000
+                    
                     # Save token usage to database
                     token_count.record_token_usage(
                         model=model,
-                        prompt=prompt[:500] if prompt else None,
+                        prompt=prompt if prompt else None,
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens,
                         total_tokens=total_tokens,
                         user_id=user_id,
-                        session_id=session_id
+                        session_id=session_id,
+                        generation_time_ms=generation_time_ms
                     )
                     
                     # Extract components

@@ -2,6 +2,8 @@ from fasthtml.common import *
 from starlette.responses import RedirectResponse
 from routes import setup_routes
 from starlette.middleware.sessions import SessionMiddleware
+import token_count
+import atexit
 
 # Create the app with authentication
 login_redir = RedirectResponse('/login', status_code=303)
@@ -49,6 +51,9 @@ app.add_middleware(
 
 # Set up all routes from the routes module
 setup_routes(app)
+
+# Initialize token database
+token_count.init_db()
 
 # Add styling for the layout and components
 @rt("/")
@@ -182,7 +187,8 @@ def create_side_menu(active_menu=None):
         #("menuC", "Stability AI Video Generator"),
         ("menuD", "HTML5 Interactive Editor"),
         #("menuE", "Lea Chatbot"),
-        #("tokens", "Token Usage Monitoring"),
+        ("tokens", "Token Usage Monitoring"),
+
     ]
     
     return Ul(*[
@@ -243,5 +249,8 @@ def get():
         P("This is the Token Usage Monitoring content area."),
         cls="menu-content"
     )
+
+# Register cleanup function to close database connections when application exits
+atexit.register(token_count.close_all_connections)
 
 serve()
