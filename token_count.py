@@ -4,19 +4,17 @@ import json
 from psycopg2 import pool
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
+import atexit
 
 # Load environment variables
 load_dotenv()
-
-# Check if we're running on Vercel or other read-only environment
-IS_PRODUCTION = os.environ.get('VERCEL') == '1' or os.environ.get('PRODUCTION') == '1'
 
 # Get the database connection string
 DB_URL = os.environ.get('DATABASE_URL')
 
 # Create a connection pool if DB_URL is available
 connection_pool = None
-if DB_URL and not IS_PRODUCTION:
+if DB_URL:
     try:
         connection_pool = pool.SimpleConnectionPool(
             1,  # Minimum number of connections
@@ -29,7 +27,7 @@ if DB_URL and not IS_PRODUCTION:
 
 def init_db():
     """Initialize the token usage database in PostgreSQL"""
-    if IS_PRODUCTION or connection_pool is None:
+    if connection_pool is None:
         return
     
     try:
@@ -85,8 +83,8 @@ def record_token_usage(model, prompt, prompt_tokens, completion_tokens, total_to
     print(f"Tokens - Prompt: {prompt_tokens}, Completion: {completion_tokens}, Total: {total_tokens}")
     print(f"Generation Time: {generation_time_ms:.2f} ms ({generation_time_ms/1000:.2f} seconds)")
     
-    # In production or if no connection pool, just log the usage
-    if IS_PRODUCTION or connection_pool is None:
+    # If no connection pool is available, just log
+    if connection_pool is None:
         print(f"Token usage: {json.dumps(record)}")
         return
     
@@ -116,7 +114,7 @@ def record_token_usage(model, prompt, prompt_tokens, completion_tokens, total_to
 
 def get_token_usage(limit=100, user_id=None):
     """Get recent token usage data from PostgreSQL"""
-    if IS_PRODUCTION or connection_pool is None:
+    if connection_pool is None:
         return []
     
     try:
@@ -158,7 +156,7 @@ def get_token_usage_summary(user_id=None):
         "models_used": []
     }
     
-    if IS_PRODUCTION or connection_pool is None:
+    if connection_pool is None:
         print("Database unavailable for token summary. Using empty summary.")
         return empty_summary
     
@@ -223,7 +221,7 @@ def get_token_usage_summary(user_id=None):
 
 def get_token_usage_by_user():
     """Get token usage statistics grouped by user from PostgreSQL"""
-    if IS_PRODUCTION or connection_pool is None:
+    if connection_pool is None:
         return []
     
     try:
@@ -258,7 +256,7 @@ def get_token_usage_by_user():
 
 def get_token_record(record_id):
     """Get a specific token usage record by ID"""
-    if IS_PRODUCTION or connection_pool is None:
+    if connection_pool is None:
         return None
     
     try:
@@ -268,10 +266,7 @@ def get_token_record(record_id):
         # Use RealDictCursor to get results as dictionaries
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        cursor.execute('''
-        SELECT * FROM token_usage WHERE id = %s
-        ''', (record_id,))
-        
+        cursor.execute("SELECT * FROM token_usage WHERE id = %s", (record_id,))
         record = cursor.fetchone()
         
         # Return the connection to the pool
@@ -281,56 +276,44 @@ def get_token_record(record_id):
         return dict(record) if record else None
     except Exception as e:
         print(f"Warning: Failed to get token record: {e}")
-        import traceback
-        traceback.print_exc()
         return None
 
 def reset_token_database():
-    """Drop and recreate the token usage table"""
-    if IS_PRODUCTION or connection_pool is None:
-        return False
+    """Reset the token database (CAUTION: Deletes all records)"""
+    if connection_pool is None:
+        return {"success": False, "message": "Database connection unavailable"}
     
     try:
         # Get a connection from the pool
         conn = connection_pool.getconn()
         cursor = conn.cursor()
         
-        # Drop the token_usage table if it exists
-        cursor.execute('DROP TABLE IF EXISTS token_usage')
-        
-        # Create a new token_usage table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS token_usage (
-            id SERIAL PRIMARY KEY,
-            timestamp TIMESTAMP,
-            model TEXT,
-            prompt TEXT,
-            prompt_tokens INTEGER,
-            completion_tokens INTEGER,
-            total_tokens INTEGER,
-            user_id TEXT,
-            session_id TEXT,
-            generation_time_ms FLOAT
-        )
-        ''')
-        
+        # Truncate the token_usage table
+        cursor.execute("TRUNCATE TABLE token_usage")
         conn.commit()
         
         # Return the connection to the pool
         cursor.close()
         connection_pool.putconn(conn)
         
-        print("Token usage table reset successfully")
-        return True
+        return {
+            "success": True,
+            "message": "Token usage database has been reset successfully."
+        }
     except Exception as e:
         print(f"Warning: Failed to reset token database: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        return {
+            "success": False,
+            "message": f"Failed to reset token database: {str(e)}"
+        }
 
-# Cleanup function to close all connections when application exits
+# Register a function to close all connections when the application shuts down
 def close_all_connections():
-    """Close all database connections in the pool"""
     if connection_pool:
+        print("Closing all database connections")
         connection_pool.closeall()
-        print("Closed all database connections")
+
+# Register the cleanup function
+atexit.register(close_all_connections)
