@@ -18,18 +18,6 @@ templates:
 
     - Model a system with realistic physics relevant to the chosen topic.
     - Include interactive controls such as Play, Pause and Reset.
-    - Provide meaningful visualizations, such as directional vectors, forces, shadows, or any representations that support conceptual understanding.
-    - Use clear labels to help users interpret what they see on screen.
-    
-    User Interface Guidelines:
-    - All control buttons should be placed at the top of the interface, above the main visualization panel.
-    - Layout must maximize the use of screen space, especially vertical space, by:
-      - Hiding page titles, browser margins, and any non-essential UI.
-      - Ensuring content fills the display area cleanly and intuitively.
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without any external libraries, CDNs, or internet access.
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height, with no scrolling required.
     
     Focus on scientific accuracy and educational value appropriate for secondary school students. Use proper scientific terminology while keeping explanations accessible.
 
@@ -52,24 +40,12 @@ templates:
     - Model a simplified system with age-appropriate physics relevant to the chosen topic.
     - Include large, colorful interactive controls such as Play, Pause, and Reset.
     - Provide engaging visualizations with bright colors and simple representations.
-    - Use clear, simple labels with minimal text to help young users understand what they see.
-    
-    User Interface Guidelines:
-    - All control buttons should be large, colorful, and placed at the top of the interface.
-    - Layout must be simple and intuitive for young users:
-      - Use large, clear visuals with minimal text
-      - Ensure content is engaging and visually appealing
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without any external libraries or internet access.
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height, with no scrolling required.
-    - Support touch interactions for tablets, which are commonly used in primary classrooms.
     
     Use straightforward, age-appropriate language with analogies to everyday experiences. Focus on fostering curiosity rather than technical details.
 
   secondary_math_template: |
     
-    Create a fully interactive and engaging mathematical manipulative using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The manipulative should:
+    Create a fully interactive and engaging mathematical manipulative using only HTML, CSS, and JavaScript for secondary school students, all within a single self-contained HTML file. The manipulative should:
     
     Based on this topic: { INSERT TOPIC HERE }
     The manipulative should demonstrate the following mathematical concepts:
@@ -85,31 +61,12 @@ templates:
     
     - Model mathematical concepts with accurate representations and behavior
     - Include interactive controls such as sliders, buttons, and direct manipulation of objects
-    - Provide meaningful visualizations that help build intuition for abstract concepts
-    - Use clear labels, grid lines, and annotations to support understanding
-
-    User Interface Guidelines:
-    - Place all control elements (buttons, sliders) in an intuitive location, preferably at the top or side
-    - Layout must maximize visualization space by:
-      - Using a clean, distraction-free design with minimal UI elements
-      - Ensuring the manipulative area fills the display cleanly
-      - Using responsive design to adapt to different screen sizes
-    
-    Interaction Requirements:
-    - Support direct manipulation where possible (drag, resize, rotate objects)
-    - Provide immediate visual feedback to user actions
-    - Include exploration tools that reveal underlying mathematical relationships
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without external libraries or internet access
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height
-    - Support touch interactions for tablets/touchscreens and mouse interactions for desktop
     
     Include precise mathematical notation and terminology. Focus on building intuition for abstract concepts through interactive exploration.
 
   primary_math_template: |
     
-    Create a fully interactive and engaging mathematical manipulative using only HTML, CSS, and JavaScript, all within a single self-contained HTML file. The manipulative should:
+    Create a fully interactive and engaging mathematical manipulative using only HTML, CSS, and JavaScript for primary school students, all within a single self-contained HTML file. The manipulative should:
     
     Based on this topic: { INSERT TOPIC HERE }
     The manipulative should teach these basic math concepts:
@@ -126,26 +83,8 @@ templates:
     - Model basic mathematical concepts with simple, concrete representations
     - Display numbers, shapes, and results in a large, clear, child-friendly format
     - Include colorful, intuitive controls that are easy for young children to understand
-    - Provide engaging visualizations using familiar objects like blocks, animals, or toys
     - Use minimal text with clear visual cues and simple labels
 
-    User Interface Guidelines:
-    - Place control elements as large, colorful buttons with visual icons
-    - Layout must be simple and appealing to young users:
-      - Use bright, engaging colors and simple shapes
-      - Make interactive elements obviously clickable/draggable
-      - Ensure plenty of space between interactive elements
-    
-    Interaction Requirements:
-    - Support simple drag-and-drop interactions with large touch targets
-    - Provide immediate, positive feedback with animations or sounds
-    - Keep interactions simple and intuitive for developing motor skills
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without external libraries
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height
-    - Optimize for touch interactions on tablets, which are common in primary classrooms
-    
     Use simple, concrete visuals like blocks, number lines, and familiar objects. Focus on building number sense and basic operations through playful interaction.
 
   secondary_games_template: |
@@ -170,23 +109,6 @@ templates:
     - Balance educational value with engaging gameplay to maintain student interest
     - Use age-appropriate graphics, themes, and complexity levels
     
-    User Interface Guidelines:
-    - Place game controls and status indicators in non-intrusive locations
-    - Layout must support immersive gameplay:
-      - Keep UI elements minimal during active gameplay
-      - Ensure the game area fills the display cleanly
-      - Use responsive design that works on various screen sizes
-    
-    Gameplay Requirements:
-    - Include clear instructions, objectives, and feedback mechanisms
-    - Support keyboard/mouse inputs with intuitive controls
-    - Provide progressive difficulty levels to challenge different ability levels
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without external libraries
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height
-    - Support both desktop and touch interactions where possible
-    
     Design games that require critical thinking, problem-solving, and application of subject knowledge while maintaining engagement.
 
   primary_games_template: |
@@ -208,26 +130,9 @@ templates:
     - Focus on basic skills development through simple, enjoyable gameplay
     - Use bright colors, simple animations, and positive reinforcement
     - Include very simple rules and controls appropriate for young children
-    - Feature friendly characters or themes that appeal to primary students
-    - Provide consistent positive feedback and celebration of achievements
-    
-    User Interface Guidelines:
-    - Use large, colorful buttons with minimal text and clear visual cues
-    - Layout must be simple and engaging:
-      - Minimize complexity and text instructions
-      - Use large interactive elements with generous spacing
-      - Ensure friendly visual design with appealing characters
-    
-    Gameplay Requirements:
-    - Keep rules extremely simple with gradual introduction of concepts
-    - Provide constant positive feedback through sounds, animations, or characters
-    - Ensure no possibility of failure that might discourage young learners
-    
-    Platform and Device Compatibility:
-    - The HTML file must run entirely offline, without external libraries
-    - Ensure it fits well within an iframe environment, using 100% width and 90% height
-    - Optimize for touch interactions on tablets, which are common in primary classrooms
-    
+    - Include clear scoring systems, challenge progression, and meaningful feedback
+    - Feature intuitive controls and responsive design for smooth gameplay
+
     Design simple, encouraging games that build confidence and foundational skills through play.
 
   general_game_template: |
@@ -291,21 +196,6 @@ templates:
     Visual Aids & Representation: Use clear text labels. Employ engaging, age-appropriate, and meaningful visualizations (graphics, animations, icons) that support gameplay and represent concepts effectively.
     ♿ Accessibility:
 
-    Ensure basic web accessibility (WCAG AA): sufficient color contrast, keyboard navigability, ARIA attributes if needed, associated labels for controls.
-    User Interface Guidelines:
-
-    Place controls and status indicators logically and non-intrusively.
-    Layout must support immersive gameplay: keep UI minimal during active play, ensure the game area fills the display cleanly.
-    Use responsive design that works on various screen sizes.
-    Fit well within an iframe: width: 100%, height: 90% (approx.), strictly no internal scrollbars.
-    Language & Terminology:
-
-    Use clear, concise English appropriate for the target age group.
-    Employ scientific terminology consistent with the Singapore MOE syllabus where relevant.
-
-    Platform & Compatibility:
-    Layout adapts reasonably to landscape and portrait orientations.
-  
 
   general_simulation_template: |
     
