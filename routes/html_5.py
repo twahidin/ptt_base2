@@ -27,6 +27,9 @@ GLOBAL_HISTORY = {}
 # Format: { user_id: { 'current': { 'html': '...', 'css': '...', 'js': '...' }, 'previous': { 'html': '...', 'css': '...', 'js': '...' } } }
 GLOBAL_CODE_STORAGE = {}
 
+# Define a global variable to store refinement history for each user
+GLOBAL_REFINEMENT_HISTORY = {}
+
 #try and load the environment variables
 if os.getenv("OPENAI_API_KEY") is None:
     os.environ["OPENAI_API_KEY"] = ""
@@ -592,6 +595,11 @@ def routes(rt):
         if user_id in GLOBAL_CODE_STORAGE:
             del GLOBAL_CODE_STORAGE[user_id]
             print(f"Cleared global code storage for user {user_id}")
+            
+        # Clear the refinement history for this user
+        if user_id in GLOBAL_REFINEMENT_HISTORY:
+            del GLOBAL_REFINEMENT_HISTORY[user_id]
+            print(f"Cleared refinement history for user {user_id}")
         
         # Clear old history for backward compatibility
         if user_id in GLOBAL_HISTORY:
@@ -622,15 +630,16 @@ def routes(rt):
             if (zipButton) zipButton.classList.add('hidden');
             if (previousButton) previousButton.classList.add('hidden');
             
-            // Clear HTML5 Prompt text area but preserve iterative mode setting
-            if (typeof tinymce !== 'undefined' && tinymce.get('prompt')) {
-                tinymce.get('prompt').setContent('');
-            } else {
-                // Fallback to regular textarea if TinyMCE isn't initialized
-                var promptTextarea = document.getElementById('prompt');
-                if (promptTextarea) {
-                    promptTextarea.value = '';
-                }
+            // Clear HTML5 Prompt text area directly
+            var promptTextarea = document.getElementById('prompt');
+            if (promptTextarea) {
+                promptTextarea.value = '';
+            }
+            
+            // Clear refinement prompt too if it exists
+            var refinementTextarea = document.getElementById('refinement_prompt');
+            if (refinementTextarea) {
+                refinementTextarea.value = '';
             }
             
             // Refresh any iterative badges (but don't change the toggle state)
@@ -990,11 +999,16 @@ def routes(rt):
 
     @rt('/api/html5/generate-code')
     async def post(req):
-        """Generate HTML5 code based on reference images and user prompt"""
+        """Generate HTML5 interactive code based on prompt and reference images"""
         try:
-            # Get user ID from session for history tracking
+            # Get user ID from session for storage
             user_id = req.session.get('auth', 'anonymous')
             
+            # Clear any existing refinement history
+            if user_id in GLOBAL_REFINEMENT_HISTORY:
+                del GLOBAL_REFINEMENT_HISTORY[user_id]
+                print(f"Cleared refinement history for user {user_id} before new generation")
+                
             # Get current state from session or global storage
             current_html = req.session.get('html', '')
             current_css = req.session.get('css', '')
@@ -1350,6 +1364,16 @@ def routes(rt):
             prompt = form.get('prompt', '')
             model = form.get('model', 'gpt-4o')
             
+            # Store refinement instruction in history if it's not empty
+            if prompt and prompt.strip():
+                # Initialize refinement history for this user if needed
+                if user_id not in GLOBAL_REFINEMENT_HISTORY:
+                    GLOBAL_REFINEMENT_HISTORY[user_id] = []
+                
+                # Add the prompt to the history
+                GLOBAL_REFINEMENT_HISTORY[user_id].append(prompt.strip())
+                print(f"Added refinement instruction to history for user {user_id}")
+            
             # For refinement, always use iterative mode
             is_iterative = True
             
@@ -1519,10 +1543,16 @@ def routes(rt):
 
     @rt('/api/html5/upload-zip')
     async def post(req):
-        """Handle uploaded ZIP file and extract HTML, CSS, and JS content"""
+        """Upload a ZIP file and extract HTML, CSS, and JS"""
         try:
             # Get user ID from session for storage
             user_id = req.session.get('auth', 'anonymous')
+            
+            # Clear any existing refinement history
+            if user_id in GLOBAL_REFINEMENT_HISTORY:
+                del GLOBAL_REFINEMENT_HISTORY[user_id]
+                print(f"Cleared refinement history for user {user_id} after ZIP upload")
+                
             print(f"\n----- UPLOAD ZIP DEBUG -----")
             print(f"Processing ZIP upload for user {user_id}")
             
@@ -1914,6 +1944,28 @@ def routes(rt):
                 Pre(error_details, cls="text-xs mt-2"),
                 cls="bg-red-800 text-white p-2 mb-4 rounded"
             )
+
+    @rt('/api/html5/get-refinement-history')
+    async def get(req):
+        """Get the refinement history for the current user"""
+        # Get user ID from session
+        user_id = req.session.get('auth', 'anonymous')
+        
+        # Get the refinement history from global storage
+        history = []
+        if user_id in GLOBAL_REFINEMENT_HISTORY:
+            history = GLOBAL_REFINEMENT_HISTORY[user_id]
+        
+        # Return the history as a simple HTML list without dates/times
+        if not history:
+            return NotStr('<div class="text-gray-400 italic p-3">No refinement history yet</div>')
+        
+        history_html = '<div class="p-3 bg-gray-800 rounded overflow-y-auto max-h-64">'
+        for prompt in history:
+            history_html += f'<div class="mb-2 pb-2 border-b border-gray-700">{prompt}</div>'
+        history_html += '</div>'
+        
+        return NotStr(history_html)
 
 async def generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js, user_id="anonymous", session_id=None):
     """Generate HTML5 code using the specified model"""

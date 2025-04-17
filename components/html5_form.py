@@ -760,15 +760,37 @@ def create_html5_form(api_key=None):
                 padding: 1.5rem;
                 background-color: #1a202c;
                 border-radius: 0 0 0.5rem 0.5rem;
+                min-height: 800px; /* Set a minimum height to prevent resizing */
+                width: 100%; /* Ensure consistent width */
+                box-sizing: border-box; /* Include padding in width calculation */
             }
             
             .main-tab-panel.active {
                 display: block;
             }
+
+            /* Form consistency */
+            #generation-form, #refinement-form, #html5-form {
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            
+            /* Tab panel container */
+            .tab-container {
+                width: 100%;
+                max-width: 100%;
+                margin: 0 auto;
+                box-sizing: border-box;
+            }
+            
+            /* Force consistent form layout */
+            .main-tab-panel form {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }
         """),
-        
-        # Include TinyMCE script
-        Script(src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js", referrerpolicy="origin"),
         
         H2("HTML5 Interactive Editor", cls="text-center text-xl font-bold mb-4 text-green-400 drop-shadow-md"),
         
@@ -804,199 +826,236 @@ def create_html5_form(api_key=None):
                 cls="main-tab-header"
             ),
             
-            # Generation Tab Panel
+            # Fixed width container for the tab panels
             Div(
-                Form(
-                    # Hidden API Key
-                    Input(id='api_key', name='api_key',
-                        value=api_key,
-                        type='hidden'),
-                    
-                    # Model selector
-                    Div(
-                        Label("Model:", cls="block mb-2 text-green-500"),
-                        Select(
-                            Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
-                            Option("GPT-4.5", value="gpt-4.5-preview"),
-                            Option("GPT-4o", value="gpt-4o"),
-                            Option("GPT-4o Mini", value="gpt-4o-mini"),
-                            Option("GPT-o1", value="o1"),
-                            Option("GPT-o3-mini", value="o3-mini"),
-                            Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
-                            id="model-selector",
-                            name="model",
-                            cls="w-full p-2 border rounded"
-                        ),
-                        cls="mb-4"
-                    ),
-                    
-                    # Add recipe carousel
-                    create_recipe_carousel(recipe_templates) if recipe_templates else Div(),
-                    
-                    # Rich Text Editor for prompt
-                    Div(
-                        Label("HTML5 Prompt:", cls="block mb-2 text-blue-500 text-xl"),
-                        # Basic textarea for initial render and as fallback
-                        Textarea("", 
-                              id='prompt', 
-                              name='prompt', 
-                              placeholder='Describe the HTML5 interactive content you want to generate...',
-                              rows=32,
-                              cls="w-full p-2 border rounded"),
-                        cls="mb-4"
-                    ),
-                    
-                    # File upload section - simplified to basic file inputs
-                    Div(
-                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2 text-blue-500"),
-                        P("Upload images to be used as references in your interactive content", 
-                          cls="text-sm text-gray-400 mb-4"),
+                # Generation Tab Panel
+                Div(
+                    Form(
+                        # Hidden API Key
+                        Input(id='api_key', name='api_key',
+                            value=api_key,
+                            type='hidden'),
                         
-                        create_multiple_uploaders(5, "gen"),
-                        
-                        cls="mb-6 p-4 border border-gray-700 rounded bg-gray-900"
-                    ),
-                    
-                    # Generate button
-                    Button("Generate", 
-                           type='submit',
-                           hx_post="/api/html5/generate-code",
-                           hx_target="#code-editors-container",
-                           hx_indicator="#loading-indicator",
-                           cls="w-full py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
-                    
-                    id="html5-form",
-                    enctype="multipart/form-data",
-                    cls="space-y-4",
-                ),
-                id="generation-panel",
-                cls="main-tab-panel active"
-            ),
-            
-            # Iteration Tab Panel (empty for now)
-            Div(
-                Form(
-                    # Hidden API Key
-                    Input(id='api_key_iteration', name='api_key',
-                        value=api_key,
-                        type='hidden'),
-                    
-                    # Model selector
-                    Div(
-                        Label("Model:", cls="block mb-2 text-green-500"),
-                        Select(
-                            Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
-                            Option("GPT-4.5", value="gpt-4.5-preview"),
-                            Option("GPT-4o", value="gpt-4o"),
-                            Option("GPT-4o Mini", value="gpt-4o-mini"),
-                            Option("GPT-o1", value="o1"),
-                            Option("GPT-o3-mini", value="o3-mini"),
-                            Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
-                            id="model-selector-iteration",
-                            name="model",
-                            cls="w-full p-2 border rounded"
-                        ),
-                        cls="mb-4"
-                    ),
-                    
-                    # Help section for refinement
-                    Div(
-                        Details(
-                            Summary(
-                                Div(
-                                    "How to Use Refinement (Click to Expand)",
-                                    Svg(
-                                        Path(d="M19 9l-7 7-7-7", stroke="currentColor", stroke_width="2", fill="none"),
-                                        viewBox="0 0 24 24", 
-                                        width="16", 
-                                        height="16",
-                                        cls="ml-2"
-                                    ),
-                                    cls="flex items-center"
-                                ),
-                                cls="cursor-pointer font-semibold text-blue-400 hover:text-blue-300 border-2 border-blue-400 p-2 rounded hover:bg-gray-800 flex items-center justify-between w-full"
-                            ),
-                            Div(
-                                H4("Effective Refinement Tips:", cls="text-blue-300 text-lg mt-2 mb-3"),
-                                Ul(
-                                    Li("Focus on one change at a time for best results", cls="mb-2"),
-                                    Li("Use the 'Undo' button if you don't like a result", cls="mb-2"),
-                                    Li("Create a ZIP download after each satisfactory iteration", cls="mb-2"),
-                                    Li("Be specific about what to change and what to keep the same", cls="mb-2"),
-                                    Li("Use the 'Example Refinements' button in the toolbar for templates", cls="mb-2"),
-                                    cls="list-disc ml-6 text-gray-300"
-                                ),
-                                H4("Example Scenarios:", cls="text-blue-300 text-lg mt-4 mb-3"),
-                                Div(
-                                    Pre("Add a new variable called x in the drop down list and keep the rest of the code the same", 
-                                        cls="bg-gray-900 p-2 rounded text-sm mb-2"),
-                                    Pre("Change the font of the text to black in the table and keep the rest of the code the same", 
-                                        cls="bg-gray-900 p-2 rounded text-sm mb-2"),
-                                    Pre("Remove the object [name] from the simulation and adjust the necessary code", 
-                                        cls="bg-gray-900 p-2 rounded text-sm mb-2"),
-                                    Pre("Create an object [name] that can [behavior] and adjust the necessary code", 
-                                        cls="bg-gray-900 p-2 rounded text-sm"),
-                                    cls="mb-3"
-                                ),
-                                cls="p-3 bg-gray-800 rounded-b"
-                            ),
-                            cls="mb-4 border border-gray-600 rounded"
-                        ),
-                        cls="mb-4"
-                    ),
-                    
-                    # Rich Text Editor for refinement prompt (half the height)
-                    Div(
-                        # Removed Refinement Instructions label
-                        
-                        # Fallback refinement examples toolbar
+                        # Model selector
                         Div(
-                            # Removed Example Refinements text
-                            Div(
-                                Button("Add Variable", 
-                                      type="button",
-                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
-                                      onclick="insertRefinementExample('Add a new variable called x in the drop down list and keep the rest of the code the same')"),
-                                Button("Change Style", 
-                                      type="button",
-                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
-                                      onclick="insertRefinementExample('Change the font of the text to black in the table and keep the rest of the code the same')"),
-                                Button("Remove Element", 
-                                      type="button",
-                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
-                                      onclick="insertRefinementExample('Remove the object [object name] from the simulation and adjust the necessary code while keeping the rest of the code intact')"),
-                                Button("Create Object", 
-                                      type="button",
-                                      cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
-                                      onclick="insertRefinementExample('Create an object [object name] so that the object can [describe behavior] and adjust the necessary code while keeping the rest of the code intact')"),
-                                Button("Clear All", 
-                                      type="button",
-                                      cls="px-2 py-1 bg-red-700 text-white text-xs rounded mb-1 hover:bg-red-600",
-                                      onclick="document.getElementById('refinement_prompt').value = ''"),
-                                cls="flex flex-wrap"
+                            Label("Model:", cls="block mb-2 text-green-500"),
+                            Select(
+                                Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
+                                Option("GPT-4.5", value="gpt-4.5-preview"),
+                                Option("GPT-4o", value="gpt-4o"),
+                                Option("GPT-4o Mini", value="gpt-4o-mini"),
+                                Option("GPT-o1", value="o1"),
+                                Option("GPT-o3-mini", value="o3-mini"),
+                                Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
+                                id="model-selector",
+                                name="model",
+                                cls="w-full p-2 border rounded"
                             ),
-                            cls="mb-3 p-2 border border-gray-700 rounded bg-gray-800"
+                            cls="mb-4"
                         ),
                         
-                        # Basic textarea for initial render and as fallback
-                        Textarea("", 
-                              id='refinement_prompt', 
-                              name='prompt', 
-                              placeholder='Describe how you want to refine the current HTML5 content...',
-                              rows=16,
-                              cls="w-full p-3 border-2 rounded border-blue-500 bg-gray-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-400 focus:outline-none text-white font-medium"),
-                        cls="mb-4"
+                        # Add recipe carousel
+                        create_recipe_carousel(recipe_templates) if recipe_templates else Div(),
+                        
+                        # Rich Text Editor for prompt
+                        Div(
+                            Label("HTML5 Prompt:", cls="block mb-2 text-blue-500 text-xl"),
+                            # Basic textarea for initial render and as fallback
+                            Textarea("", 
+                                  id='prompt', 
+                                  name='prompt', 
+                                  placeholder='Describe the HTML5 interactive content you want to generate...',
+                                  rows=32,
+                                  cls="w-full p-2 border rounded"),
+                            cls="mb-4"
+                        ),
+                        
+                        # File upload section - simplified to basic file inputs
+                        Div(
+                            H3("Reference Images (Up to 5):", cls="block text-lg mb-2 text-blue-500"),
+                            P("Upload images to be used as references in your interactive content", 
+                              cls="text-sm text-gray-400 mb-4"),
+                            
+                            create_multiple_uploaders(5, "gen"),
+                            
+                            cls="mb-6 p-4 border border-gray-700 rounded bg-gray-900"
+                        ),
+                        
+                        # Generate button
+                        Button("Generate", 
+                               type='submit',
+                               hx_post="/api/html5/generate-code",
+                               hx_target="#code-editors-container",
+                               hx_indicator="#loading-indicator",
+                               cls="w-full py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
+                        
+                        id="html5-form",
+                        enctype="multipart/form-data",
+                        cls="space-y-4",
                     ),
-                    
-                    # Add script for fallback buttons 
-                    Script("""
-                    function insertRefinementExample(text) {
-                        // Try TinyMCE first
-                        if (typeof tinymce !== 'undefined' && tinymce.get('refinement_prompt')) {
-                            tinymce.get('refinement_prompt').insertContent(text);
-                            tinymce.get('refinement_prompt').focus();
-                        } else {
-                            // Fallback to regular textarea
+                    id="generation-panel",
+                    cls="main-tab-panel active"
+                ),
+                
+                # Iteration Tab Panel (empty for now)
+                Div(
+                    Form(
+                        # Hidden API Key
+                        Input(id='api_key_iteration', name='api_key',
+                            value=api_key,
+                            type='hidden'),
+                        
+                        # Model selector
+                        Div(
+                            Label("Model:", cls="block mb-2 text-green-500"),
+                            Select(
+                                Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
+                                Option("GPT-4.5", value="gpt-4.5-preview"),
+                                Option("GPT-4o", value="gpt-4o"),
+                                Option("GPT-4o Mini", value="gpt-4o-mini"),
+                                Option("GPT-o1", value="o1"),
+                                Option("GPT-o3-mini", value="o3-mini"),
+                                Option("Claude 3.5 Haiku", value="claude-3-5-haiku-20241022"),
+                                id="model-selector-iteration",
+                                name="model",
+                                cls="w-full p-2 border rounded"
+                            ),
+                            cls="mb-4"
+                        ),
+                        
+                        # Help section for refinement
+                        Div(
+                            Details(
+                                Summary(
+                                    Div(
+                                        "How to Use Refinement (Click to Expand)",
+                                        Svg(
+                                            Path(d="M19 9l-7 7-7-7", stroke="currentColor", stroke_width="2", fill="none"),
+                                            viewBox="0 0 24 24", 
+                                            width="16", 
+                                            height="16",
+                                            cls="ml-2"
+                                        ),
+                                        cls="flex items-center"
+                                    ),
+                                    cls="cursor-pointer font-semibold text-blue-400 hover:text-blue-300 border-2 border-blue-400 p-2 rounded hover:bg-gray-800 flex items-center justify-between w-full"
+                                ),
+                                Div(
+                                    H4("Effective Refinement Tips:", cls="text-blue-300 text-lg mt-2 mb-3"),
+                                    Ul(
+                                        Li("Focus on one change at a time for best results", cls="mb-2"),
+                                        Li("Use the 'Undo' button if you don't like a result", cls="mb-2"),
+                                        Li("Create a ZIP download after each satisfactory iteration", cls="mb-2"),
+                                        Li("Be specific about what to change and what to keep the same", cls="mb-2"),
+                                        Li("Use the 'Example Refinements' button in the toolbar for templates", cls="mb-2"),
+                                        cls="list-disc ml-6 text-gray-300"
+                                    ),
+                                    H4("Example Scenarios:", cls="text-blue-300 text-lg mt-4 mb-3"),
+                                    Div(
+                                        Pre("Add a new variable called x in the drop down list and keep the rest of the code the same", 
+                                            cls="bg-gray-900 p-2 rounded text-sm mb-2"),
+                                        Pre("Change the font of the text to black in the table and keep the rest of the code the same", 
+                                            cls="bg-gray-900 p-2 rounded text-sm mb-2"),
+                                        Pre("Remove the object [name] from the simulation and adjust the necessary code", 
+                                            cls="bg-gray-900 p-2 rounded text-sm mb-2"),
+                                        Pre("Create an object [name] that can [behavior] and adjust the necessary code", 
+                                            cls="bg-gray-900 p-2 rounded text-sm"),
+                                        cls="mb-3"
+                                    ),
+                                    cls="p-3 bg-gray-800 rounded-b"
+                                ),
+                                cls="mb-4 border border-gray-600 rounded"
+                            ),
+                            cls="mb-4"
+                        ),
+                        
+                        # Rich Text Editor for refinement prompt (half the height)
+                        Div(
+                            # Refinement History expandable tab
+                            Details(
+                                Summary(
+                                    Div(
+                                        "Refinement History (Click to Expand)",
+                                        Svg(
+                                            Path(d="M19 9l-7 7-7-7", stroke="currentColor", stroke_width="2", fill="none"),
+                                            viewBox="0 0 24 24", 
+                                            width="16", 
+                                            height="16",
+                                            cls="ml-2"
+                                        ),
+                                        cls="flex items-center"
+                                    ),
+                                    cls="cursor-pointer font-semibold text-blue-400 hover:text-blue-300 border-2 border-blue-400 p-2 rounded hover:bg-gray-800 flex items-center justify-between w-full"
+                                ),
+                                Div(
+                                    id="refinement-history-content",
+                                    cls="p-3 bg-gray-800 rounded-b text-gray-300 mt-2",
+                                    hx_get="/api/html5/get-refinement-history",
+                                    hx_trigger="load, revealed"
+                                ),
+                                cls="mb-4 border border-gray-600 rounded"
+                            ),
+                            
+                            # Clear button positioned between history and textarea
+                            Button(
+                                Div(
+                                    Svg(
+                                        Path(d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z", fill="currentColor"),
+                                        viewBox="0 0 24 24", 
+                                        width="18", 
+                                        height="18"
+                                    ),
+                                    Span("Clear Instructions", cls="ml-2"),
+                                    cls="flex items-center justify-center"
+                                ),
+                                type="button",
+                                cls="w-full py-2 px-3 bg-red-700 text-white rounded-md mb-3 hover:bg-red-800 transition-all duration-200",
+                                onclick="document.getElementById('refinement_prompt').value = ''"
+                            ),
+                            
+                            # Example refinement buttons for guidance
+                            Div(
+                                P("Example of Refinement Instructions:", cls="text-blue-400 text-sm font-medium mb-2"),
+                                Div(
+                                    Button("Add Variable", 
+                                          type="button",
+                                          cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                          onclick="insertRefinementExample('Add a new variable called x in the drop down list and keep the rest of the code the same')"),
+                                    Button("Change Style", 
+                                          type="button",
+                                          cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                          onclick="insertRefinementExample('Change the font of the text to black in the table and keep the rest of the code the same')"),
+                                    Button("Remove Element", 
+                                          type="button",
+                                          cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                          onclick="insertRefinementExample('Remove the object [object name] from the simulation and adjust the necessary code while keeping the rest of the code intact')"),
+                                    Button("Create Object", 
+                                          type="button",
+                                          cls="px-2 py-1 bg-gray-700 text-blue-300 text-xs rounded mr-2 mb-1 hover:bg-gray-600",
+                                          onclick="insertRefinementExample('Create an object [object name] so that the object can [describe behavior] and adjust the necessary code while keeping the rest of the code intact')"),
+                                    cls="flex flex-wrap"
+                                ),
+                                cls="mb-3 p-2 border border-gray-700 rounded bg-gray-800"
+                            ),
+                            
+                            # Advisory text about clearing previous instructions
+                            P("⚠️ Please clear previous instructions before adding new ones to avoid duplicating refinements.", 
+                              cls="text-yellow-400 text-sm mb-3 font-medium"),
+                            
+                            # Basic textarea for initial render and as fallback
+                            Textarea("", 
+                                  id='refinement_prompt', 
+                                  name='prompt', 
+                                  placeholder='Describe how you want to refine the current HTML5 content...',
+                                  rows=32,
+                                  cls="w-full p-3 border-2 rounded border-blue-500 bg-gray-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-400 focus:outline-none text-white font-medium"),
+                            cls="mb-4"
+                        ),
+                        
+                        # Add script for fallback buttons 
+                        Script("""
+                        function insertRefinementExample(text) {
+                            // Simple textarea handling without TinyMCE
                             const textarea = document.getElementById('refinement_prompt');
                             if (textarea) {
                                 // Get cursor position or end of text
@@ -1014,34 +1073,24 @@ def create_html5_form(api_key=None):
                                 textarea.focus();
                             }
                         }
-                    }
-                    """),
-                    
-                    # File upload section - simplified to basic file inputs
-                    Div(
-                        H3("Reference Images (Up to 5):", cls="block text-lg mb-2 text-blue-500"),
-                        P("Upload images to be used as references in your refinement", 
-                          cls="text-sm text-gray-400 mb-4"),
+                        """),
                         
-                        create_multiple_uploaders(5, "iter"),
+                        # Refinement button
+                        Button("Refine", 
+                               type='submit',
+                               hx_post="/api/html5/refine-code",
+                               hx_target="#code-editors-container",
+                               hx_indicator="#loading-indicator",
+                               cls="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
                         
-                        cls="mb-6 p-4 border border-gray-700 rounded bg-gray-900"
+                        id="refinement-form",
+                        enctype="multipart/form-data",
+                        cls="space-y-4",
                     ),
-                    
-                    # Refinement button
-                    Button("Refine", 
-                           type='submit',
-                           hx_post="/api/html5/refine-code",
-                           hx_target="#code-editors-container",
-                           hx_indicator="#loading-indicator",
-                           cls="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all duration-300 font-medium"),
-                    
-                    id="refinement-form",
-                    enctype="multipart/form-data",
-                    cls="space-y-4",
+                    id="refinement-panel",
+                    cls="main-tab-panel"
                 ),
-                id="refinement-panel",
-                cls="main-tab-panel"
+                cls="tab-container"
             ),
             
             # Loading and results container
@@ -1340,38 +1389,20 @@ def create_html5_form(api_key=None):
             cls="p-6"
         ),
         
-      Script("""
-                // Initialize TinyMCE
+        Script("""
+                // Simple DOM ready function without TinyMCE
                 document.addEventListener('DOMContentLoaded', function() {
-                    initRichTextEditor();
-                });
-
-                function initRichTextEditor() {
-                    // Check if TinyMCE exists
-                    if (typeof tinymce !== 'undefined') {
-                        if (tinymce.get('prompt')) {
-                            tinymce.get('prompt').remove();
-                        }
-                        
-                        tinymce.init({
-                            selector: '#prompt',
-                            height: 1000,
-                            skin: 'oxide-dark',
-                            content_css: 'dark',
-                            plugins: 'autosave link image lists table code help wordcount',
-                            toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | code',
-                            menubar: 'file edit view insert format tools help',
-                            placeholder: 'Describe the HTML5 interactive content you want to generate...',
-                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#e0e0e0; }'
-                        });
-                    } else {
-                        console.warn('TinyMCE not loaded');
-                        // Fallback - just show the textarea
-                        document.getElementById('prompt').style.display = 'block';
+                    // Make sure textareas are visible
+                    const promptTextarea = document.getElementById('prompt');
+                    if (promptTextarea) {
+                        promptTextarea.style.display = 'block';
                     }
-                }
+                    
+                    const refinementTextarea = document.getElementById('refinement_prompt');
+                    if (refinementTextarea) {
+                        refinementTextarea.style.display = 'block';
+                    }
 
-                document.addEventListener('DOMContentLoaded', function() {
                     const form = document.getElementById('html5-form');
                     
                     // Add submit event listener
@@ -1468,6 +1499,10 @@ def create_html5_form(api_key=None):
                     const tabs = document.querySelectorAll('.main-tab');
                     const panels = document.querySelectorAll('.main-tab-panel');
                     
+                    // Get the current width before switching
+                    const currentPanel = document.querySelector('.main-tab-panel.active');
+                    const currentWidth = currentPanel ? currentPanel.offsetWidth : 0;
+                    
                     // Deactivate all tabs and panels
                     tabs.forEach(tab => tab.classList.remove('active'));
                     panels.forEach(panel => {
@@ -1481,6 +1516,11 @@ def create_html5_form(api_key=None):
                     if (selectedPanel) {
                         selectedPanel.classList.add('active');
                         selectedPanel.style.display = 'block';
+                        
+                        // Set explicit width if we had a previous panel
+                        if (currentWidth > 0) {
+                            selectedPanel.style.minWidth = `${currentWidth}px`;
+                        }
                     }
                     
                     console.log(`Switched to main tab: ${tabName}`);
@@ -1647,104 +1687,37 @@ def create_html5_form(api_key=None):
                     });
                 }
                 
-                // Initialize TinyMCE for the refinement prompt as well
-                document.addEventListener('DOMContentLoaded', function() {
-                    initRichTextEditor();
-                    
-                    // Fixed ZIP button click handler
-                    setTimeout(function() {
-                        const zipButton = document.getElementById('create-zip-button');
-                        if (zipButton) {
-                            console.log("Adding direct click handler to ZIP button");
-                            zipButton.addEventListener('click', function(e) {
-                                // Always prevent default to stop form submission
-                                e.preventDefault();
-                                e.stopPropagation();
-                                
-                                console.log("ZIP button clicked via direct handler");
-                                // Always use our direct handler
-                                createZipPackage();
-                                
-                                // Return false to be extra sure
-                                return false;
-                            });
-                        }
-                    }, 2000); // Wait 2 seconds for the button to be available
-                });
-                
-                function initRefinementEditor() {
-                    // Check if TinyMCE exists
-                    if (typeof tinymce !== 'undefined') {
-                        if (tinymce.get('refinement_prompt')) {
-                            tinymce.get('refinement_prompt').remove();
-                        }
-                        
-                        // Example refinement prompts
-                        const examplePrompts = [
-                            {
-                                title: "Add Variable",
-                                text: "Add a new variable called x in the drop down list and keep the rest of the code the same"
-                            },
-                            {
-                                title: "Change Style",
-                                text: "Change the font of the text to black in the table and keep the rest of the code the same"
-                            },
-                            {
-                                title: "Remove Element",
-                                text: "Remove the object [object name] from the simulation and adjust the necessary code while keeping the rest of the code intact"
-                            },
-                            {
-                                title: "Create Object",
-                                text: "Create an object [object name] so that the object can [describe behavior] and adjust the necessary code while keeping the rest of the code intact"
-                            }
-                        ];
-                        
-                        tinymce.init({
-                            selector: '#refinement_prompt',
-                            height: 500,
-                            skin: 'oxide-dark',
-                            content_css: 'dark',
-                            plugins: 'autosave link image lists table code help wordcount',
-                            toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | code',
-                            menubar: 'file edit view insert format tools help',
-                            placeholder: 'Describe how you want to refine the current HTML5 content...',
-                            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; color:#e0e0e0; }',
-                            setup: function(editor) {
-                                // Add a custom dropdown for example prompts
-                                editor.ui.registry.addMenuButton('examplePrompts', {
-                                    text: 'Example Refinements',
-                                    tooltip: 'Insert an example refinement prompt',
-                                    fetch: function(callback) {
-                                        const items = examplePrompts.map((prompt, index) => {
-                                            return {
-                                                type: 'menuitem',
-                                                text: prompt.title,
-                                                onAction: function() {
-                                                    editor.insertContent(prompt.text);
-                                                }
-                                            };
-                                        });
-                                        
-                                        // Add the general hint as the first item
-                                        items.unshift({
-                                            type: 'menuitem',
-                                            text: 'General Hint',
-                                            onAction: function() {
-                                                editor.insertContent("Hint: During the iteration process, focus on one instruction at a time, click undo if the results are not to your liking and repeat until you are satisfied. Remember to save the version that you like along the way.");
-                                            }
-                                        });
-                                        
-                                        callback(items);
-                                    }
-                                });
-                            },
-                            toolbar_items_size: 'small',
-                            toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | code | examplePrompts'
+                // Fixed ZIP button click handler
+                setTimeout(function() {
+                    const zipButton = document.getElementById('create-zip-button');
+                    if (zipButton) {
+                        console.log("Adding direct click handler to ZIP button");
+                        zipButton.addEventListener('click', function(e) {
+                            // Always prevent default to stop form submission
+                            e.preventDefault();
+                            e.stopPropagation();
+                            
+                            console.log("ZIP button clicked via direct handler");
+                            // Always use our direct handler
+                            createZipPackage();
+                            
+                            // Return false to be extra sure
+                            return false;
                         });
-                    } else {
-                        console.warn('TinyMCE not loaded for refinement editor');
-                        // Fallback - just show the textarea
-                        document.getElementById('refinement_prompt').style.display = 'block';
+                    }
+                }, 2000); // Wait 2 seconds for the button to be available
+                
+                // Clear the preview and associated code
+                function clearPreview() {
+                    // Clear HTML5 Prompt textarea
+                    var promptTextarea = document.getElementById('prompt');
+                    if (promptTextarea) {
+                        promptTextarea.value = '';
+                    }
+                    
+                    // Refresh any iterative badges (but don't change the toggle state)
+                    if (typeof updateIterativeBadge === 'function') {
+                        updateIterativeBadge();
                     }
                 }
                 
@@ -1799,6 +1772,9 @@ def create_html5_form(api_key=None):
                             // Create FormData object for proper file handling
                             const formData = new FormData(refinementForm);
                             
+                            // Save the form data for debugging
+                            console.log("Submitting refinement form");
+                            
                             // Use fetch API for the request
                             fetch('/api/html5/refine-code', {
                                 method: 'POST',
@@ -1812,11 +1788,29 @@ def create_html5_form(api_key=None):
                                 // Hide loading indicator
                                 document.getElementById('loading-indicator').style.display = 'none';
                                 
+                                // Clear the refinement prompt - direct textarea access only
+                                const textarea = document.getElementById('refinement_prompt');
+                                if (textarea) {
+                                    textarea.value = '';
+                                    console.log("Cleared refinement prompt textarea");
+                                }
+                                
                                 // Trigger HTMX afterSwap event for compatibility
                                 const event = new CustomEvent('htmx:afterSwap', {
                                     detail: { target: document.getElementById('code-editors-container') }
                                 });
                                 document.dispatchEvent(event);
+                                
+                                // Refresh the refinement history after submission
+                                const historyContent = document.getElementById('refinement-history-content');
+                                if (historyContent) {
+                                    // Use fetch to get the updated history
+                                    fetch('/api/html5/get-refinement-history')
+                                        .then(response => response.text())
+                                        .then(history => {
+                                            historyContent.innerHTML = history;
+                                        });
+                                }
                                 
                                 // Switch back to the editors view after refinement
                                 switchMainTab('generation', null);
@@ -1827,6 +1821,32 @@ def create_html5_form(api_key=None):
                                 document.getElementById('code-editors-container').innerHTML = 
                                     '<div class="error alert alert-danger">Error: ' + error.message + '</div>';
                             });
+                        });
+                    }
+                    
+                    // Handle ZIP file upload to clear refinement history
+                    const zipUploadForm = document.getElementById('zip-upload-form');
+                    if (zipUploadForm) {
+                        zipUploadForm.addEventListener('submit', function() {
+                            // This will be triggered when a ZIP is uploaded
+                            console.log("ZIP upload detected, clearing refinement history");
+                            
+                            // Make a simple GET request to clear the history
+                            fetch('/api/html5/clear-preview', { method: 'POST' })
+                                .then(() => console.log("Refinement history cleared after ZIP upload"));
+                        });
+                    }
+                    
+                    // Handle Generate button to clear refinement history
+                    const generateForm = document.getElementById('html5-form');
+                    if (generateForm) {
+                        generateForm.addEventListener('submit', function() {
+                            // This will be triggered when a new generation is started
+                            console.log("New generation detected, clearing refinement history");
+                            
+                            // Make a simple GET request to clear the history
+                            fetch('/api/html5/clear-preview', { method: 'POST' })
+                                .then(() => console.log("Refinement history cleared after new generation"));
                         });
                     }
                 });
