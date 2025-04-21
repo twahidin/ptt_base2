@@ -1976,12 +1976,15 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
         # Get API keys
         openai_key = os.environ["OPENAI_API_KEY"]
         anthropic_key = os.environ["ANTHROPIC_API_KEY"]
+        gemini_key = os.environ.get("GEMINI_API_KEY")
         
         # Check for API keys
         if not openai_key and model.startswith(("gpt", "o1", "o3")):
             raise ValueError("Please configure your OpenAI API key first")
         if not anthropic_key and model.startswith("claude"):
             raise ValueError("Please configure your Anthropic API key first")
+        if not gemini_key and model.startswith("gemini"):
+            raise ValueError("Please configure your Gemini API key first")
         
         if not prompt:
             raise ValueError("Please provide a prompt for code generation")
@@ -2290,6 +2293,167 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 raise ValueError("Claude API is currently overloaded. Please try again later or use a different model.")
             except APIStatusError as e:
                 raise ValueError(f"Claude API error: {str(e)}")
+        elif model.startswith("gemini"):
+            # Use Google Gemini
+            from google import genai
+            from google.genai import types
+            
+            try:
+                # Configure the client
+                client = genai.Client(api_key=gemini_key)
+                
+                # Define the function declaration for extract_code_components
+                extract_code_components_declaration = {
+                    "name": "extract_code_components",
+                    "description": "Extract HTML, CSS, and JavaScript components from the generated code. All three components MUST be included for a complete interactive HTML5 experience.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "html": {
+                                "type": "string",
+                                "description": "HTML content without the body tags"
+                            },
+                            "css": {
+                                "type": "string",
+                                "description": "CSS content without the style tags"
+                            },
+                            "javascript": {
+                                "type": "string",
+                                "description": "JavaScript content without the script tags. This is REQUIRED for interactive content."
+                            }
+                        },
+                        "required": ["html", "css", "javascript"]
+                    }
+                }
+                
+                # Configure tools and generation config
+                tools = types.Tool(function_declarations=[extract_code_components_declaration])
+                config = types.GenerateContentConfig(
+                    tools=[tools],
+                    temperature=0.4,
+                    max_output_tokens=8192
+                )
+                
+                # Build content with system prompt and user message
+                contents = []
+                
+                # Add system message
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part(text=system_prompt + user_prompt)]
+                    )
+                )
+                
+                # Note: Gemini API doesn't currently support image data in the same way as Claude/OpenAI
+                # We should add image support when available
+                
+                # Make the API call
+                response = client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config
+                )
+                
+                if response:
+                    print(f"Received response from Gemini. Type: {type(response)}")
+                    
+                    # Check for function call in the response
+                    if response.candidates and response.candidates[0].content.parts:
+                        for part in response.candidates[0].content.parts:
+                            if hasattr(part, 'function_call') and part.function_call:
+                                function_call = part.function_call
+                                
+                                if function_call.name == 'extract_code_components':
+                                    # Extract components from function call args
+                                    args = function_call.args
+                                    html = args.get('html', '')
+                                    css = args.get('css', '')
+                                    js = args.get('javascript', '')
+                                    
+                                    print(f"Successfully extracted components using function call - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                                    
+                                    # Record token usage (if available from Gemini API)
+                                    # Note: Gemini may structure this differently, adapt as needed
+                                    prompt_tokens = getattr(response, 'usage', {}).get('prompt_tokens', 0)
+                                    completion_tokens = getattr(response, 'usage', {}).get('completion_tokens', 0) 
+                                    total_tokens = prompt_tokens + completion_tokens
+                                    
+                                    # Calculate generation time
+                                    end_time = datetime.datetime.now()
+                                    generation_time_ms = (end_time - start_time).total_seconds() * 1000
+                                    
+                                    # Save token usage to database
+                                    token_count.record_token_usage(
+                                        model=model,
+                                        prompt=prompt if prompt else None,
+                                        prompt_tokens=prompt_tokens,
+                                        completion_tokens=completion_tokens,
+                                        total_tokens=total_tokens,
+                                        user_id=user_id,
+                                        session_id=session_id,
+                                        generation_time_ms=generation_time_ms
+                                    )
+                                    
+                                    return html, css, js
+                    
+                    # Fallback to text extraction if no function call
+                    text_content = ""
+                    for candidate in response.candidates:
+                        if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text'):
+                                    text_content += part.text + "\n"
+                    
+                    print(f"No function call found or extraction failed. Response content length: {len(text_content)} chars")
+                    
+                    # Extract components using regex as fallback
+                    html, css, js = extract_components(text_content)
+                    
+                    # If JavaScript is missing or empty, try to obtain it from elsewhere in the response
+                    if not js:
+                        print("WARNING: JavaScript missing from Gemini response, attempting additional extraction")
+                        # Try to extract JavaScript using more focused regex
+                        import re
+                        js_match = re.search(r'```(?:javascript|js)\s*(.*?)\s*```', text_content, re.DOTALL)
+                        if js_match:
+                            js = js_match.group(1).strip()
+                            print(f"Extracted JavaScript with targeted regex - {len(js)} chars")
+                    
+                    # Verify we have content
+                    if not (html or css or js):
+                        print("WARNING: No content extracted from Gemini response. Using original content.")
+                        # Return the original content if we couldn't extract anything
+                        if is_iterative and current_html and current_css and current_js:
+                            return current_html, current_css, current_js
+                    
+                    # Record token usage (if available)
+                    prompt_tokens = getattr(response, 'usage', {}).get('prompt_tokens', 0)
+                    completion_tokens = getattr(response, 'usage', {}).get('completion_tokens', 0)
+                    total_tokens = prompt_tokens + completion_tokens
+                    
+                    # Calculate generation time
+                    end_time = datetime.datetime.now()
+                    generation_time_ms = (end_time - start_time).total_seconds() * 1000
+                    
+                    # Save token usage to database
+                    token_count.record_token_usage(
+                        model=model,
+                        prompt=prompt if prompt else None,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                        user_id=user_id,
+                        session_id=session_id,
+                        generation_time_ms=generation_time_ms
+                    )
+                    
+                    return html, css, js
+                else:
+                    print("Gemini returned empty response")
+                    raise ValueError("Gemini returned an empty response")
+            except Exception as e:
+                raise ValueError(f"Gemini API error: {str(e)}")
         else:
             # Use OpenAI
             from openai import OpenAI
@@ -2358,9 +2522,8 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 # Make the API call with function tools
                 response = client.chat.completions.create(
                     model=model,
-                    max_tokens=8192,
+                    max_completion_tokens=8192,
                     messages=messages,
-                    temperature=0.4,
                     tools=tools,
                     tool_choice={"type": "function", "function": {"name": "extract_code_components"}}
                 )
