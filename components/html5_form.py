@@ -912,6 +912,8 @@ def create_html5_form(api_key=None):
                             Label("Model:", cls="block mb-2 text-green-500"),
                             Select(
                                 Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
+                                Option("GPT-o3", value="o3-2025-04-16"),
+                                Option("Gemini 2.5 Pro", value="gemini-2.5-pro-exp-03-25"),
                                 Option("GPT-4.5", value="gpt-4.5-preview"),
                                 Option("GPT-4o", value="gpt-4o"),
                                 Option("GPT-4o Mini", value="gpt-4o-mini"),
