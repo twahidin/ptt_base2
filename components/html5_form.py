@@ -125,6 +125,7 @@ def create_recipe_carousel(recipe_templates):
         
         # Carousel HTML structure
         H3("HTML5 Template Library", cls="text-lg font-bold mb-4 text-blue-500"),
+        P("To start generating an interactive, scroll through a recipe and select the one that closely matched your envision interactive. Filled in all the necessary information in the curly brackets and additional instructions. Remove any unused instructions or unnecessary information from the text box.", cls="text-sm text-gray-400 mb-4"),
         Div(
             # Previous button
             Button(
@@ -866,7 +867,7 @@ def create_html5_form(api_key=None):
                             Textarea("", 
                                   id='prompt', 
                                   name='prompt', 
-                                  placeholder='Describe the HTML5 interactive content you want to generate...',
+                                  placeholder='This simulation/game/interactive graph should have the following aspects:\nTopic...\nDemonstrates...\nDisplay...\n(Primary) Bright and colourful buttons',
                                   rows=32,
                                   cls="w-full p-2 border rounded"),
                             cls="mb-4"
@@ -875,7 +876,7 @@ def create_html5_form(api_key=None):
                         # File upload section - simplified to basic file inputs
                         Div(
                             H3("Reference Images (Up to 5):", cls="block text-lg mb-2 text-blue-500"),
-                            P("Upload images to be used as references in your interactive content", 
+                            P("Upload up to 5 reference images to help generate the interactive. Note that reference images will not appear or used as objects in the interactive. Example, you can upload what the interactive may look like at different stages of the simulation.", 
                               cls="text-sm text-gray-400 mb-4"),
                             
                             create_multiple_uploaders(5, "gen"),
