@@ -125,7 +125,7 @@ def create_recipe_carousel(recipe_templates):
         
         # Carousel HTML structure
         H3("HTML5 Template Library", cls="text-lg font-bold mb-4 text-blue-500"),
-        P("To start generating an interactive, scroll through a recipe and select the one that closely matched your envision interactive. Filled in all the necessary information in the curly brackets and additional instructions. Remove any unused instructions or unnecessary information from the text box.", cls="text-sm text-gray-400 mb-4"),
+        P("To start generating an interactive, scroll through a recipe and select the one that closely matched your envision interactive. In the recipe, fill in all the necessary information within the curly brackets and add additional instructions. If there are any unused instructions or optional fields that are not needed, remove them.", cls="text-sm text-gray-400 mb-4"),
         Div(
             # Previous button
             Button(
