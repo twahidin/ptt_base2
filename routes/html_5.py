@@ -504,20 +504,16 @@ def routes(rt):
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
+                /* Reset some basic elements */
                 body {{
-                    background-color: #121212;
-                    color: #ffffff;
                     margin: 0;
                     padding: 0;
                     font-family: Arial, sans-serif;
                     min-height: 100vh;
-                    display: flex;
-                    flex-direction: column;
                 }}
                 /* Default container for content */
                 #content-container {{
                     padding: 20px;
-                    flex-grow: 1;
                 }}
                 /* User CSS */
                 {css}
@@ -558,7 +554,7 @@ def routes(rt):
                 height="100%" 
                 frameborder="0" 
                 allowfullscreen="true" 
-                style="background-color: #121212; display: block;"
+                style="background-color: white; display: block;"
                 id="preview-frame-{datetime.datetime.now().timestamp()}"
             >
             </iframe>
@@ -892,20 +888,16 @@ def routes(rt):
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
+            /* Reset some basic elements */
             body {{
-                background-color: #121212;
-                color: #ffffff;
                 margin: 0;
                 padding: 0;
                 font-family: Arial, sans-serif;
                 min-height: 100vh;
-                display: flex;
-                flex-direction: column;
             }}
             /* Default container for content */
             #content-container {{
                 padding: 20px;
-                flex-grow: 1;
             }}
             /* User CSS */
             {css}
@@ -966,8 +958,8 @@ def routes(rt):
             # This avoids potential HTMX parsing issues
             return NotStr(f"""
             <div class="bg-gray-800 p-4 rounded border border-green-600">
-                <h4 class="text-lg font-bold text-green-500 mb-2">SLS Package Ready!</h4>
-                <p class="text-sm mb-2">Your HTML5 content has been packaged into a ZIP file ready for SLS.</p>
+                <h4 class="text-lg font-bold text-gray-400 mb-2">SLS Package Ready!</h4>
+                <p class="text-sm mb-2 text-gray-400" style="color: #4b5563 !important;">Your HTML5 content has been packaged into a ZIP file ready for SLS.</p>
                 <a href="data:application/zip;base64,{encoded_zip}" 
                 download="{filename}" 
                 type="application/zip"
@@ -975,9 +967,9 @@ def routes(rt):
                     <svg viewBox="0 0 24 24" width="20" height="20" class="mr-2">
                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z" fill="currentColor"></path>
                     </svg>
-                    <span>Download ZIP</span>
+                    <span class="text-gray-200" style="color: #4b5563 !important;">Download ZIP</span>
                 </a>
-                <p class="text-xs text-gray-400 mt-2">Upload this ZIP directly to SLS as a media object.</p>
+                <p class="text-xs text-gray-400 mt-2" style="color: #4b5563 !important;">Upload this ZIP directly to SLS as a media object.</p>
             </div>
             """)
             
@@ -1190,15 +1182,16 @@ def routes(rt):
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
+                /* Reset some basic elements */
                 body {{
-                    background-color: #121212;
-                    color: #ffffff;
                     margin: 0;
                     padding: 0;
                     font-family: Arial, sans-serif;
                     min-height: 100vh;
-                    display: flex;
-                    flex-direction: column;
+                }}
+                /* Default container for content */
+                #content-container {{
+                    padding: 20px;
                 }}
                 /* User CSS */
                 {css}
@@ -1425,15 +1418,16 @@ def routes(rt):
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <style>
+                    /* Reset some basic elements */
                     body {{
-                        background-color: #121212;
-                        color: #ffffff;
                         margin: 0;
                         padding: 0;
                         font-family: Arial, sans-serif;
                         min-height: 100vh;
-                        display: flex;
-                        flex-direction: column;
+                    }}
+                    /* Default container for content */
+                    #content-container {{
+                        padding: 20px;
                     }}
                     /* User CSS */
                     {css}

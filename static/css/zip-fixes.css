@@ -1,0 +1,70 @@
+/* Special fixes for ZIP upload section */
+h3:contains("Import Content from ZIP") {
+    color: #4a5568 !important;
+    font-weight: bold !important;
+}
+
+p:contains("Upload a ZIP file") {
+    color: #4a5568 !important;
+}
+
+label:contains("Select ZIP File") {
+    color: #4a5568 !important;
+}
+
+p:contains("Tip: Upload a ZIP file") {
+    color: #4a5568 !important;
+}
+
+/* More specific selectors for classes */
+.text-gray-500,
+[class*="text-gray"],
+[id*="import-zip"],
+[id*="zip-upload"],
+div[class*="zip"] * {
+    color: #4a5568 !important;
+}
+
+/* Force the text color for those specific elements */ 
+body div.mt-6 h3,
+body div.mt-6 p,
+body div.mt-6 label,
+body form p {
+    color: #4a5568 !important;
+    text-shadow: none !important;
+}
+
+
+/* Override any attempt to make the ZIP package text white */
+div:has(> h4:contains("SLS Package Ready")) h4,
+div:has(> p:contains("packaged into a ZIP file")) p,
+div:has(> p:contains("Upload this ZIP directly")) p {
+    color: #9ca3af !important;
+}
+
+/* Force the download button text to be gray */
+.download-link span,
+a[download] span,
+span:contains("Download ZIP"),
+span:contains("Create ZIP") {
+    color: #4b5563 !important; /* text-gray-600 - darker gray */
+}
+
+/* Stronger rules for SLS package text */
+div[class*="bg-gray-800"] h4,
+div[class*="rounded"] p:contains("Your HTML5 content has been packaged"),
+div[class*="p-4"] h4:contains("SLS Package Ready"),
+div[class*="border"] p,
+a[download] + p,
+div[id*="download-container"] p,
+p:contains("Upload this ZIP directly to SLS") {
+    color: #4b5563 !important; /* text-gray-600 - darker gray */
+    text-shadow: none !important;
+    font-weight: normal !important;
+}
+
+/* Force specific text content to be gray */
+*:contains("Your HTML5 content has been packaged into a ZIP file"),
+*:contains("Upload this ZIP directly to SLS") {
+    color: #4b5563 !important; /* text-gray-600 - darker gray */
+} 

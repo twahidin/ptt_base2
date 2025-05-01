@@ -124,7 +124,7 @@ def create_recipe_carousel(recipe_templates):
         """),
         
         # Carousel HTML structure
-        H3("HTML5 Template Library", cls="text-lg font-bold mb-4 text-blue-500"),
+        H3("HTML5 Template Library", cls="text-lg font-bold mb-4 text-white"),
         P("To start generating an interactive, scroll through a recipe and select the one that closely matched your envision interactive. In the recipe, fill in all the necessary information within the curly brackets and add additional instructions. If there are any unused instructions or optional fields that are not needed, remove them.", cls="text-sm text-gray-400 mb-4"),
         Div(
             # Previous button
@@ -392,11 +392,10 @@ def create_html5_form(api_key=None):
 
             .preview-frame {
                 width: 100%;
-                height: 400px;
+                height: 700px;
                 border: 1px solid #333;
                 border-radius: 4px;
-                background-color: #121212 !important;
-                color: #ddd;
+                background-color: #333333 !important;
                 margin-bottom: 20px;
                 overflow: hidden;
             }
@@ -405,7 +404,7 @@ def create_html5_form(api_key=None):
                 width: 100%;
                 height: 100%;
                 border: none;
-                background-color: #121212 !important;
+                background-color: #333333 !important;
             }
             
             .loading-spinner {
@@ -793,20 +792,20 @@ def create_html5_form(api_key=None):
             }
         """),
         
-        H2("HTML5 Interactive Editor", cls="text-center text-xl font-bold mb-4 text-green-400 drop-shadow-md"),
+        H2("HTML5 Interactive Editor", cls="text-center text-xl font-bold mb-4 text-white drop-shadow-md editor-title bright-white"),
         
         # Preview area with increased height
         Div(
-            H3("Preview", cls="text-lg font-semibold mb-2 text-blue-500"),
+            H3("Preview", cls="text-lg font-semibold mb-2 text-white preview-title bright-white"),
             Div(
                 Div("Your HTML5 content will appear here",
-                    cls="flex items-center justify-center h-full text-yellow-500"),
+                    cls="flex items-center justify-center h-full text-gray-600 preview-text"),
                 id="preview-container",
                 cls="preview-frame",
-                hx_swap="innerHTML",
-                style="background-color: #121212 !important; height: 700px;" # Increased height from default 400px to 600px
+                hx_swap="outerHTML",
+                style="background-color: #333333 !important; height: 700px;"
             ),
-            cls="mb-6"
+            cls="mb-6 preview-section"
         ),
 
         
@@ -839,11 +838,13 @@ def create_html5_form(api_key=None):
                         
                         # Model selector
                         Div(
-                            Label("Model:", cls="block mb-2 text-green-500"),
+                            Label("Model:", 
+                                 cls="block mb-2 text-white", 
+                                 style="color: #ffffff !important; font-weight: bold;"),
                             Select(
                                 Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
+                                Option("Gemini 2.5 Pro", value="gemini-2.5-pro-preview-03-25"),
                                 Option("GPT-o3", value="o3-2025-04-16"),
-                                Option("Gemini 2.5 Pro", value="gemini-2.5-pro-exp-03-25"),
                                 Option("GPT-4.5", value="gpt-4.5-preview"),
                                 Option("GPT-4o", value="gpt-4o"),
                                 Option("GPT-4o Mini", value="gpt-4o-mini"),
@@ -862,7 +863,9 @@ def create_html5_form(api_key=None):
                         
                         # Rich Text Editor for prompt
                         Div(
-                            Label("HTML5 Prompt:", cls="block mb-2 text-blue-500 text-xl"),
+                            Label("HTML5 Prompt:", 
+                                 cls="block mb-2 text-white text-xl", 
+                                 style="color: #ffffff !important; font-weight: bold;"),
                             # Basic textarea for initial render and as fallback
                             Textarea("", 
                                   id='prompt', 
@@ -910,11 +913,13 @@ def create_html5_form(api_key=None):
                         
                         # Model selector
                         Div(
-                            Label("Model:", cls="block mb-2 text-green-500"),
+                            Label("Model:", 
+                                 cls="block mb-2 text-white", 
+                                 style="color: #ffffff !important; font-weight: bold;"),
                             Select(
                                 Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
                                 Option("GPT-o3", value="o3-2025-04-16"),
-                                Option("Gemini 2.5 Pro", value="gemini-2.5-pro-exp-03-25"),
+                                Option("Gemini 2.5 Pro", value="gemini-2.5-pro-preview-03-25"),
                                 Option("GPT-4.5", value="gpt-4.5-preview"),
                                 Option("GPT-4o", value="gpt-4o"),
                                 Option("GPT-4o Mini", value="gpt-4o-mini"),
@@ -1142,7 +1147,7 @@ def create_html5_form(api_key=None):
                                     width="18", 
                                     height="18"
                                 ),
-                                Span("Create ZIP", cls="ml-2"),
+                                Span("Create ZIP", cls="ml-2 text-gray-200"),
                                 cls="flex items-center justify-center"
                             ),
                             id="create-zip-button",
@@ -1197,13 +1202,18 @@ def create_html5_form(api_key=None):
                     
                     # ZIP Upload Section - moved below the buttons
                     Div(
-                        H3("Import Content from ZIP", cls="block text-lg mb-2 text-green-500"),
+                        H3("Import Content from ZIP", 
+                           cls="block text-lg mb-2 text-gray-500", 
+                           style="color: #4a5568 !important;"),
                         P("Upload a ZIP file containing HTML, CSS, and JavaScript files to import", 
-                          cls="text-sm text-gray-400 mb-3"),
+                          cls="text-sm text-gray-500 mb-3",
+                          style="color: #4a5568 !important;"),
                         
                         Form(
                             Div(
-                                Label("Select ZIP File:", cls="block mb-2 text-sm text-yellow-500"),
+                                Label("Select ZIP File:", 
+                                      cls="block mb-2 text-sm text-gray-500",
+                                      style="color: #4a5568 !important;"),
                                 Input(
                                     type="file", 
                                     name="zipfile", 
@@ -1233,7 +1243,8 @@ def create_html5_form(api_key=None):
                             ),
                             P(
                                 "Tip: Upload a ZIP file that was previously downloaded from this tool for best results.",
-                                cls="text-xs text-gray-400 mt-2"
+                                cls="text-xs text-gray-500 mt-2",
+                                style="color: #4a5568 !important;"
                             ),
                             enctype="multipart/form-data",
                             id="zip-upload-form",
@@ -1587,10 +1598,10 @@ def create_html5_form(api_key=None):
                     if (downloadContainer) {
                         downloadContainer.innerHTML = `
                             <div class="bg-gray-800 p-4 rounded border border-blue-500">
-                                <h4 class="text-lg font-bold text-blue-400 mb-2">Creating ZIP Package...</h4>
+                                <h4 class="text-lg font-bold text-gray-400 mb-2">Creating ZIP Package...</h4>
                                 <div class="flex items-center space-x-3">
                                     <div class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <p>Preparing your download...</p>
+                                    <p class="text-gray-400">Preparing your download...</p>
                                 </div>
                             </div>
                         `;

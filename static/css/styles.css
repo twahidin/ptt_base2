@@ -1,13 +1,13 @@
-
 :root {
     --bg-dark: #1a1a1a;
     --bg-darker: #141414;
     --text-light: #ffffff;
-    --text-muted: #a0a0a0;
+    --text-muted: #f0f0f0;
     --primary-blue: #2563eb;
     --primary-hover: #1d4ed8;
     --border-color: #333333;
     --content-bg: #1e1e1e;
+    --bright-white: #ffffff;
 }
 
 body {
@@ -48,10 +48,11 @@ body {
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
+    color: var(--bright-white);
 }
 
 .welcome-text {
-    color: var(--text-muted);
+    color: var(--text-light);
     font-size: 0.875rem;
     margin-top: 0.25rem;
 }
@@ -186,11 +187,11 @@ button:hover {
 
 .menu-content h2 {
     margin-bottom: 1rem;
-    color: var(--text-light);
+    color: var(--bright-white);
 }
 
 .menu-content p {
-    color: var(--text-muted);
+    color: var(--text-light);
     line-height: 1.6;
 }
 
@@ -257,8 +258,6 @@ button:hover {
     border: 1px solid #f5c6cb;
 }
 
-
-
 .loading-message {
     text-align: center;
     margin-bottom: 20px;
@@ -268,4 +267,63 @@ button:hover {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* Add styles for the HTML5 Interactive Editor heading */
+.content-area h2 {
+    color: var(--bright-white) !important;
+}
+
+/* Apply to all headings in the content area */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--bright-white);
+}
+
+/* Add stronger rules for HTML5 Interactive Editor heading */
+#content-area h2, 
+.content-area h2, 
+div[id="content-area"] h2, 
+.menu-content h2,
+[class*="content"] h2,
+.preview-section h2 {
+    color: var(--bright-white) !important;
+}
+
+/* Target preview text specifically */
+.preview-section, 
+[class*="preview"],
+div:has(> h2:contains("HTML5 Interactive Editor")),
+h2:contains("Preview") {
+    color: var(--bright-white) !important;
+}
+
+/* Force all text elements to use white colors except specific sections */
+* {
+    color: var(--text-light);
+}
+
+/* Exception for gray text classes */
+.text-gray-400,
+.text-gray-500,
+.text-gray-600,
+.text-gray-700,
+.text-gray-800,
+[class*="text-gray"],
+div:has(> h3:contains("Import Content from ZIP")) *,
+div:has(> p:contains("Upload a ZIP file")) *,
+div:has(> label:contains("Select ZIP File")) *,
+div:has(> p:contains("Tip: Upload a ZIP file")) * {
+    color: #4a5568 !important;
+}
+
+h1, h2, h3, h4, h5, h6, 
+[class*="title"], 
+[class*="heading"],
+.header-title h1 {
+    color: var(--bright-white) !important;
+}
+
+/* Apply to all headings in the content area */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--bright-white);
 }

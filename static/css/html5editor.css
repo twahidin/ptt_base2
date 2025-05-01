@@ -1,0 +1,201 @@
+/* HTML5 Interactive Editor Styles */
+:root {
+    --light-white: #ffffff !important;
+    --bright-white: #ffffff !important;
+}
+
+/* Reset all colors first */
+.content-area h2,
+.content-area div,
+.content-area p,
+.content-area span,
+.menu-content h2,
+div[id="content-area"] h2,
+#content-area h2,
+#content-area div,
+#content-area p {
+    color: var(--bright-white) !important;
+    text-shadow: none !important;
+}
+
+#content-area p,
+.content-area p,
+.content-area div,
+#content-area div {
+    color: var(--light-white) !important;
+}
+
+/* Model selector and HTML5 prompt styling */
+#model-selector, 
+.model-selector,
+[id*="model"],
+[class*="model"],
+.recipe-title,
+.recipe-preview,
+[class*="prompt"],
+#prompt,
+textarea[id="prompt"],
+label[for="prompt"],
+.HTML5-prompt {
+    color: #ffffff !important;
+    text-shadow: none !important;
+}
+
+/* Even more aggressive styles for the specific element */
+[class*="HTML5"], 
+[id*="HTML5"],
+[class*="Interactive"], 
+[id*="Interactive"],
+[class*="Editor"], 
+[id*="Editor"],
+[class*="Preview"], 
+[id*="Preview"],
+h2 {
+    color: var(--bright-white) !important;
+    text-shadow: none !important;
+    font-weight: bold !important;
+}
+
+/* Target all headings */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--bright-white) !important;
+    text-shadow: none !important;
+}
+
+/* Add a more focused selector specifically for the HTML5 Interactive Editor heading */
+h2:contains("HTML5"), 
+div:contains("HTML5") > h2 {
+    color: var(--bright-white) !important;
+    text-shadow: none !important;
+}
+
+/* Target the specific classes we added */
+.editor-title, 
+.preview-title {
+    color: var(--bright-white) !important;
+    text-shadow: none !important;
+}
+
+.preview-text {
+    color: var(--light-white) !important;
+}
+
+.preview-section * {
+    color: var(--light-white) !important;
+}
+
+.preview-section h2, 
+.preview-section h3 {
+    color: var(--bright-white) !important;
+}
+
+.bright-green {
+    color: var(--bright-white) !important;
+}
+
+/* Try direct style injection using a !important inline style */
+div[id="content-area"] {
+    color: var(--light-white) !important;
+}
+
+div[id="content-area"] h2 {
+    color: var(--bright-white) !important;
+}
+
+/* Apply important styles directly to any "content" element */
+[id*="content"] h2, 
+[class*="content"] h2 {
+    color: var(--bright-white) !important;
+    text-shadow: none !important;
+}
+
+/* Add a universal style for specific text content */
+*:contains("HTML5 Interactive Editor") {
+    color: var(--bright-white) !important;
+}
+
+/* Target any element with HTML5 in the text */
+*:contains("HTML5") {
+    color: var(--bright-white) !important;
+}
+
+/* Target iframe content if present */
+iframe {
+    border: 1px solid var(--bright-white) !important;
+}
+
+iframe html, 
+iframe body, 
+iframe div, 
+iframe h2 {
+    color: var(--light-white) !important;
+}
+
+iframe h1, 
+iframe h2, 
+iframe h3, 
+iframe h4, 
+iframe h5, 
+iframe h6 {
+    color: var(--bright-white) !important;
+}
+
+/* Override any other styles */
+[style*="color"] {
+    color: var(--light-white) !important;
+}
+
+[style*="color"] h1,
+[style*="color"] h2,
+[style*="color"] h3,
+[style*="color"] h4,
+[style*="color"] h5,
+[style*="color"] h6 {
+    color: var(--bright-white) !important;
+}
+
+/* Target preview area */
+[class*="preview"], 
+#preview,
+.preview,
+[id*="preview"] {
+    color: var(--light-white) !important;
+}
+
+[class*="preview"] h2, 
+#preview h2,
+.preview h2,
+[id*="preview"] h2 {
+    color: var(--bright-white) !important;
+}
+
+/* ZIP Upload Section styling with highest specificity */
+div:has(> h3:contains("Import Content from ZIP")),
+h3:contains("Import Content from ZIP"),
+div:has(> p:contains("Upload a ZIP file")),
+p:contains("Upload a ZIP file"),
+div:has(> label:contains("Select ZIP File")),
+label:contains("Select ZIP File"),
+div:has(> p:contains("Tip: Upload a ZIP file")),
+p:contains("Tip: Upload a ZIP file") {
+    color: #4a5568 !important; /* Dark gray */
+    text-shadow: none !important;
+    background-color: transparent !important;
+}
+
+/* Ensure ZIP related elements have dark gray color */
+[id*="zip"], 
+[class*="zip"],
+[id*="ZIP"], 
+[class*="ZIP"] {
+    color: #4a5568 !important;
+}
+
+/* Specific rule for HTML5 Prompt label */
+label:contains("HTML5 Prompt"),
+div:has(> label:contains("HTML5 Prompt")),
+[for="prompt"] {
+    color: #ffffff !important;
+    font-weight: bold !important;
+    text-shadow: none !important;
+} 

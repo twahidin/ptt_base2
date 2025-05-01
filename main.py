@@ -59,6 +59,23 @@ token_count.init_db()
 @rt("/")
 def head():
     return Style("""
+        :root {
+            --light-green: #90ee90;
+            --bright-green: #00ff00;
+        }
+        
+        body, h1, h2, h3, h4, h5, h6, p, div, span, a, li {
+            color: var(--light-green) !important;
+        }
+        
+        .header-title h1, .app-container h1, .content-area h2 {
+            color: var(--bright-green) !important;
+        }
+        
+        .welcome-text {
+            color: var(--light-green) !important;
+        }
+        
         .app-container {
             width: 100%;
             min-height: 100vh;
@@ -89,6 +106,10 @@ def head():
             min-height: 500px;
         }
         
+        .content-area h2 {
+            color: var(--bright-green) !important;
+        }
+        
         .side-menu {
             list-style: none;
             padding: 0;
@@ -102,7 +123,7 @@ def head():
         .side-menu .menu-item {
             display: block;
             padding: 0.75rem 1rem;
-            color: var(--primary);
+            color: var(--light-green) !important;
             text-decoration: none;
             border-radius: 6px;
             transition: all 0.2s ease;
@@ -110,12 +131,121 @@ def head():
         
         .side-menu .menu-item:hover {
             background: var(--primary);
-            color: var(--primary-inverse);
+            color: var(--primary-inverse) !important;
         }
         
         .side-menu .menu-item.active {
             background: var(--primary);
-            color: var(--primary-inverse);
+            color: var(--primary-inverse) !important;
+        }
+        
+        .side-submenu {
+            list-style: none;
+            padding: 0 0 0 1.5rem;
+            margin: 0.5rem 0 0 0;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .has-submenu > a {
+            position: relative;
+        }
+        
+        .has-submenu > a:after {
+            content: "▼";
+            font-size: 0.7rem;
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: transform 0.2s ease;
+        }
+        
+        .has-submenu > a.expanded:after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        
+        .submenu-nav-li {
+            margin-bottom: 0.25rem;
+        }
+        
+        .submenu-nav-item {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            color: var(--light-green) !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .submenu-nav-item:hover {
+            background: var(--primary-hover);
+            color: var(--primary-inverse) !important;
+        }
+        
+        .submenu-nav-item.active {
+            background: var(--primary-focus);
+            color: var(--primary-inverse) !important;
+        }
+        
+        .submenu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .submenu-item {
+            padding: 0.5rem 1rem;
+            background: var(--card-background-color);
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            color: var(--light-green) !important;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .submenu-item:hover {
+            background: var(--primary);
+            color: var(--primary-inverse) !important;
+        }
+        
+        .submenu-content {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: var(--card-background-color);
+            border: 1px solid var(--muted-border-color);
+            border-radius: 6px;
+            min-height: 200px;
+        }
+        
+        .interactive-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .interactive-card {
+            padding: 1.5rem;
+            background: var(--card-sectionning-background-color);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: 100%;
+        }
+        
+        .interactive-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .interactive-card h4 {
+            margin-top: 0;
+            color: var(--bright-green) !important;
         }
         
         .error {
@@ -125,6 +255,16 @@ def head():
             padding: 1rem;
             margin-bottom: 1rem;
             border-radius: 4px;
+        }
+        
+        /* Make sure header text is visible */
+        #content-area h2 {
+            color: var(--bright-green) !important;
+        }
+        
+        /* Preview header */
+        h2 {
+            color: var(--bright-green) !important;
         }
     """)
 
@@ -150,6 +290,8 @@ def get(req):
     # Show main application layout if authenticated
     return Titled("MOE PPT Version 2",
         Link(rel="stylesheet", href="/static/css/styles.css"),
+        Link(rel="stylesheet", href="/static/css/html5editor.css"),
+        Link(rel="stylesheet", href="/static/css/zip-fixes.css"),
         Container(
             Div(
                 Grid(
@@ -175,31 +317,132 @@ def get(req):
                     ),
                     cls="main-layout"
                 ),
+                Script("""
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Get all menu items with submenu
+                        var menuItems = document.querySelectorAll('.has-submenu > a');
+                        
+                        // Add click event to each menu item
+                        menuItems.forEach(function(item) {
+                            item.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                
+                                // Toggle the active class on the menu item
+                                this.classList.toggle('expanded');
+                                
+                                // Get the submenu
+                                var submenu = this.nextElementSibling;
+                                
+                                // Toggle submenu visibility
+                                if (submenu.style.maxHeight) {
+                                    submenu.style.maxHeight = null;
+                                } else {
+                                    submenu.style.maxHeight = submenu.scrollHeight + "px";
+                                }
+                            });
+                        });
+                        
+                        // Initialize all submenus to be collapsed
+                        document.querySelectorAll('.side-submenu').forEach(function(submenu) {
+                            submenu.style.maxHeight = null;
+                        });
+                    });
+                """),
                 cls="app-container"
             )
         )
     )
         
 def create_side_menu(active_menu=None):
-    menu_items = [
-        #("menuA", "Leonardo AI Generator"),
-        #("menuB", "Stability AI Generator"),
-        #("menuC", "Stability AI Video Generator"),
-        ("menuD", "HTML5 Interactive Editor"),
-        #("menuE", "Lea Chatbot"),
-        ("tokens", "Token Usage Monitoring"),
-
+    # Define menu structure with submenus
+    menu_structure = [
+        {
+            "id": "menuD", 
+            "name": "HTML5 Interactive Editor",
+            "has_submenu": False
+        },
+        {
+            "id": "primary", 
+            "name": "Primary School Interactives Gallery",
+            "has_submenu": True,
+            "submenu": [
+                {"id": "primary/math", "name": "Math"},
+                {"id": "primary/science", "name": "Science"},
+                {"id": "primary/languages", "name": "Languages"}
+            ]
+        },
+        {
+            "id": "secondary", 
+            "name": "Secondary School Interactives Gallery",
+            "has_submenu": True,
+            "submenu": [
+                {"id": "secondary/math", "name": "Math"},
+                {"id": "secondary/science", "name": "Science"},
+                {"id": "secondary/humanities", "name": "Humanities"},
+                {"id": "secondary/craft_tech", "name": "Craft & Technology"},
+                {"id": "secondary/languages", "name": "Languages"}
+            ]
+        },
+        {
+            "id": "jc_ci", 
+            "name": "JC & CI Interactives Gallery",
+            "has_submenu": True,
+            "submenu": [
+                {"id": "jc_ci/math", "name": "Math"},
+                {"id": "jc_ci/science", "name": "Science"},
+                {"id": "jc_ci/humanities_arts", "name": "Humanities & Arts"},
+                {"id": "jc_ci/languages", "name": "Languages"}
+            ]
+        },
+        {
+            "id": "tokens", 
+            "name": "Token Usage Monitoring",
+            "has_submenu": False
+        }
     ]
     
-    return Ul(*[
+    menu_items = []
+    for item in menu_structure:
+        if item["has_submenu"]:
+            # Create main menu item with submenu
+            submenu_items = []
+            for subitem in item["submenu"]:
+                submenu_items.append(
+                    Li(
+                        A(subitem["name"], 
+                          href=f"#{subitem['id']}", 
+                          hx_get=f"/{subitem['id']}",
+                          hx_target="#content-area",
+                          cls=f"submenu-nav-item {'active' if subitem['id'] == active_menu else ''}"),
+                        cls="submenu-nav-li"
+                    )
+                )
+            
+            menu_items.append(
+                Li(
+                    A(item["name"], 
+                      href=f"#{item['id']}", 
+                      hx_get=f"/{item['id']}",
+                      hx_target="#content-area",
+                      cls=f"menu-item {'active' if item['id'] == active_menu else ''}",
+                      id=f"{item['id']}-toggle"),
+                    Ul(*submenu_items, cls="side-submenu", id=f"{item['id']}-submenu"),
+                    cls="has-submenu"
+                )
+            )
+        else:
+            # Create regular menu item without submenu
+            menu_items.append(
         Li(
-            A(name, 
-              href=f"#{id_}", 
-              hx_get=f"/{id_}",
+                    A(item["name"], 
+                      href=f"#{item['id']}", 
+                      hx_get=f"/{item['id']}",
               hx_target="#content-area",
-              cls=f"menu-item {'active' if id_ == active_menu else ''}"),
-        ) for id_, name in menu_items
-    ], cls="side-menu")
+                      cls=f"menu-item {'active' if item['id'] == active_menu else ''}"),
+                )
+            )
+    
+    return Ul(*menu_items, cls="side-menu")
 
 # Example route for menu content
 @rt("/menuA")
@@ -229,8 +472,41 @@ def get():
 @rt("/menuD")
 def get():
     return Div(
-        H2("HTML5 Interactive Editor"),
-        P("This is the HTML 5 Generator content area."),
+        H2("HTML5 Interactive Editor", 
+           cls="editor-title bright-green", 
+           style="color: #ffffff !important; text-shadow: 0 0 5px #ffffff !important;"),
+        P("This is the HTML 5 Generator content area.", 
+          style="color: #ffffff !important;"),
+        Div(
+            H2("Preview", 
+               cls="preview-title bright-green", 
+               style="color: #ffffff !important; text-shadow: 0 0 5px #ffffff !important;"),
+            P("Your HTML5 content will appear here", 
+              cls="preview-text", 
+              style="color: #ffffff !important;"),
+            cls="preview-section"
+        ),
+        Script("""
+            document.addEventListener('DOMContentLoaded', function() {
+                // Set colors for HTML5 Interactive Editor headings
+                const headings = document.querySelectorAll('h2');
+                headings.forEach(heading => {
+                    if (heading.textContent.includes('HTML5') || 
+                        heading.textContent.includes('Interactive') || 
+                        heading.textContent.includes('Editor') || 
+                        heading.textContent.includes('Preview')) {
+                        heading.style.color = '#ffffff';
+                        heading.style.textShadow = '0 0 5px #ffffff';
+                    }
+                });
+                
+                // Set colors for paragraphs 
+                const paragraphs = document.querySelectorAll('p');
+                paragraphs.forEach(p => {
+                    p.style.color = '#ffffff';
+                });
+            });
+        """),
         cls="menu-content"
     )
 
