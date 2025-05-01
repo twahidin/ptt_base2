@@ -484,6 +484,19 @@ def create_gallery_upload_form(gallery_type="primary"):
                             cls="form-group"
                         ),
                         
+                        # Description field
+                        Div(
+                            Label("Description of Interactive", fr="interactive-description"),
+                            Textarea(
+                                placeholder="Enter a description of your interactive...",
+                                id="interactive-description",
+                                name="interactive-description",
+                                rows=4,
+                                cls="form-control"
+                            ),
+                            cls="form-group"
+                        ),
+                        
                         cls="form-section"
                     ),
                     
@@ -908,6 +921,7 @@ def create_gallery_upload_form(gallery_type="primary"):
                         const level = document.getElementById('interactive-level').value;
                         const subject = document.getElementById('interactive-subject').value;
                         const prompt = document.getElementById('interactive-prompt').value;
+                        const description = document.getElementById('interactive-description').value;
                         const zipFile = document.getElementById('interactive-zip').files[0];
                         
                         // Upload ZIP file to blob storage
@@ -934,6 +948,7 @@ def create_gallery_upload_form(gallery_type="primary"):
                             level: level,
                             subject: subject,
                             prompt: prompt || null,
+                            description: description || null,
                             galleryType: '""" + gallery_type + """',
                             zipUrl: zipData.url,
                             referenceImages: Object.values(window.refImages).filter(url => url !== null),

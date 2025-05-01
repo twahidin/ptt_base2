@@ -270,6 +270,17 @@ def create_gallery_submissions_grid(submissions):
                             else ""
                         ),
                         
+                        # Display description if available
+                        (
+                            Div(
+                                H5("Description:", cls="text-sm font-semibold text-gray-400"),
+                                P(submission.get('description', ''), cls="gallery-prompt"),
+                                cls="mt-3"
+                            )
+                            if submission.get('description') 
+                            else ""
+                        ),
+                        
                         # Display reference images if available
                         (
                             Div(

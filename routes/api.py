@@ -502,6 +502,8 @@ def routes(router):
             print(f"New gallery submission: {metadata['title']} ({metadata['level']} - {metadata['subject']})")
             print(f"ZIP URL: {metadata['zipUrl']}")
             print(f"Reference Images: {len(metadata['referenceImages'])}")
+            if metadata.get('description'):
+                print(f"Description: {metadata['description'][:100]}{'...' if len(metadata['description']) > 100 else ''}")
             
             # Run cleanup of temporary files
             cleanup_count = cleanup_temporary_files()

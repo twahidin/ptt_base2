@@ -363,7 +363,7 @@ def create_side_menu(active_menu=None):
         },
         {
             "id": "primary", 
-            "name": "Primary School Interactives Gallery",
+            "name": "Primary School Interactives Gallery (Submission Page)",
             "has_submenu": True,
             "submenu": [
                 {"id": "primary/math", "name": "Math"},
@@ -373,7 +373,7 @@ def create_side_menu(active_menu=None):
         },
         {
             "id": "secondary", 
-            "name": "Secondary School Interactives Gallery",
+            "name": "Secondary School Interactives Gallery (Submission Page)",
             "has_submenu": True,
             "submenu": [
                 {"id": "secondary/math", "name": "Math"},
@@ -385,7 +385,7 @@ def create_side_menu(active_menu=None):
         },
         {
             "id": "jc_ci", 
-            "name": "JC & CI Interactives Gallery",
+            "name": "JC & CI Interactives Gallery (Submission Page)",
             "has_submenu": True,
             "submenu": [
                 {"id": "jc_ci/math", "name": "Math"},
