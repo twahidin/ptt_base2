@@ -2561,49 +2561,49 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                         # Don't force tool choice when using thinking mode
                         # Let the model decide whether to use the tool
                         
-                        # Make the API call with thinking mode
-                        response = client.messages.create(**thinking_params)
+                        # STEP 1: Make the initial API call with thinking mode
+                        initial_response = client.messages.create(**thinking_params)
                         
-                        # Process the response
-                        if response and hasattr(response, 'content') and len(response.content) > 0:
-                            tool_use_found = False
-                            text_content = ""
-                            thinking_content = ""
-                            
-                            # Extract content from response
-                            for content in response.content:
-                                if content.type == 'tool_use':
-                                    tool_use_found = True
-                                    tool_name = content.name
-                                    tool_input = content.input
-                                    
-                                    if tool_name == 'extract_code_components':
-                                        html = tool_input.get('html', '')
-                                        css = tool_input.get('css', '')
-                                        js = tool_input.get('javascript', '')
-                                        print(f"Successfully extracted components from thinking-mode response - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                        # Extract thinking and tool_use blocks from the response
+                        thinking_block = None
+                        tool_use_block = None
+                        text_content = ""
+                        
+                        if initial_response and hasattr(initial_response, 'content') and len(initial_response.content) > 0:
+                            for content in initial_response.content:
+                                if content.type == 'thinking':
+                                    thinking_block = content
+                                    print(f"Received thinking content: {len(content.thinking)} chars")
+                                    # Save thinking content if available
+                                    try:
+                                        thinking_dir = Path("thinking_logs")
+                                        thinking_dir.mkdir(exist_ok=True)
+                                        thinking_file = thinking_dir / f"thinking_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                                        with open(thinking_file, "w") as f:
+                                            f.write(content.thinking)
+                                        print(f"Saved thinking content to {thinking_file}")
+                                    except Exception as e:
+                                        print(f"Could not save thinking content: {e}")
+                                elif content.type == 'tool_use':
+                                    tool_use_block = content
+                                    print(f"Received tool use: {content.name}")
                                 elif content.type == 'text':
                                     text_content += content.text + "\n"
-                                elif content.type == 'thinking':
-                                    thinking_content = content.thinking
-                                    print(f"Received thinking content: {len(thinking_content)} chars")
+                        
+                        # Check if we got both thinking and tool use blocks
+                        if thinking_block and tool_use_block and tool_use_block.name == 'extract_code_components':
+                            # Extract tool input (the code components)
+                            tool_input = tool_use_block.input
+                            html = tool_input.get('html', '')
+                            css = tool_input.get('css', '')
+                            js = tool_input.get('javascript', '')
                             
-                            # Save thinking content if available
-                            if thinking_content:
-                                try:
-                                    thinking_dir = Path("thinking_logs")
-                                    thinking_dir.mkdir(exist_ok=True)
-                                    thinking_file = thinking_dir / f"thinking_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-                                    with open(thinking_file, "w") as f:
-                                        f.write(thinking_content)
-                                    print(f"Saved thinking content to {thinking_file}")
-                                except Exception as e:
-                                    print(f"Could not save thinking content: {e}")
+                            print(f"Initial tool extraction - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
                             
-                            # If tool was used, extract components
-                            if tool_use_found and html and (css or True) and js:
+                            # If we already have complete code components, we can return them
+                            if html and (css or True) and js:  # CSS is optional
                                 # Record token usage
-                                completion_tokens = response.usage.output_tokens
+                                completion_tokens = initial_response.usage.output_tokens
                                 total_tokens = prompt_tokens + completion_tokens
                                 
                                 # Calculate generation time
@@ -2624,29 +2624,98 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                                 
                                 return html, css, js
                             
-                            # If no tool was used or components are missing, try to extract from text content
-                            if text_content:
-                                print("Extracting components from thinking-mode response text content")
-                                html, css, js = extract_components(text_content)
+                            # STEP 2: If we need to process the tool result, send a follow-up request
+                            # Create tool result message with the initial result
+                            tool_result = {
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_block.id,
+                                "content": json.dumps({
+                                    "status": "success",
+                                    "message": "Code components extracted successfully"
+                                })
+                            }
+                            
+                            # Create continuation request
+                            continuation_params = thinking_params.copy()  # Use the same parameters
+                            continuation_params["messages"] = [
+                                # Original message
+                                {"role": "user", "content": message_content},
                                 
-                                # If we have valid components, return them
-                                if html and js:  # CSS is optional
-                                    # Record token usage
-                                    completion_tokens = response.usage.output_tokens
-                                    total_tokens = prompt_tokens + completion_tokens
-                                    
-                                    # Save token usage to database
-                                    token_count.record_token_usage(
-                                        model=model,
-                                        prompt=prompt if prompt else None,
-                                        prompt_tokens=prompt_tokens,
-                                        completion_tokens=completion_tokens,
-                                        total_tokens=total_tokens,
-                                        user_id=user_id,
-                                        session_id=session_id
-                                    )
-                                    
-                                    return html, css, js
+                                # Assistant message with thinking and tool use
+                                {"role": "assistant", "content": [thinking_block, tool_use_block]},
+                                
+                                # Tool result message
+                                {"role": "user", "content": [tool_result]}
+                            ]
+                            
+                            print("Sending continuation request with tool result")
+                            final_response = client.messages.create(**continuation_params)
+                            
+                            # Handle the final response - should contain complete code
+                            if final_response and hasattr(final_response, 'content') and len(final_response.content) > 0:
+                                final_text_content = ""
+                                for content in final_response.content:
+                                    if content.type == 'text':
+                                        final_text_content += content.text + "\n"
+                                    # Check for additional tool use in final response
+                                    elif content.type == 'tool_use' and content.name == 'extract_code_components':
+                                        final_tool_input = content.input
+                                        html = final_tool_input.get('html', '')
+                                        css = final_tool_input.get('css', '')
+                                        js = final_tool_input.get('javascript', '')
+                                        print(f"Final tool extraction - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                                
+                                # If we don't have complete components from tool use, try extracting from text
+                                if not (html and (css or True) and js):
+                                    print("Extracting components from final text content")
+                                    html, css, js = extract_components(final_text_content)
+                                
+                                # Record token usage for both requests combined
+                                initial_tokens = initial_response.usage.output_tokens
+                                final_tokens = final_response.usage.output_tokens
+                                completion_tokens = initial_tokens + final_tokens
+                                total_tokens = prompt_tokens + completion_tokens
+                                
+                                # Calculate generation time
+                                end_time = datetime.datetime.now()
+                                generation_time_ms = (end_time - start_time).total_seconds() * 1000
+                                
+                                # Save token usage to database
+                                token_count.record_token_usage(
+                                    model=model,
+                                    prompt=prompt if prompt else None,
+                                    prompt_tokens=prompt_tokens,
+                                    completion_tokens=completion_tokens,
+                                    total_tokens=total_tokens,
+                                    user_id=user_id,
+                                    session_id=session_id,
+                                    generation_time_ms=generation_time_ms
+                                )
+                                
+                                return html, css, js
+                        else:
+                            # We didn't get both thinking and tool use blocks
+                            # Try to extract components from text content
+                            print("Did not receive both thinking and tool use blocks, extracting from text")
+                            html, css, js = extract_components(text_content)
+                            
+                            if html and (css or True) and js:  # CSS is optional
+                                # Record token usage
+                                completion_tokens = initial_response.usage.output_tokens
+                                total_tokens = prompt_tokens + completion_tokens
+                                
+                                # Save token usage to database
+                                token_count.record_token_usage(
+                                    model=model,
+                                    prompt=prompt if prompt else None,
+                                    prompt_tokens=prompt_tokens,
+                                    completion_tokens=completion_tokens,
+                                    total_tokens=total_tokens,
+                                    user_id=user_id,
+                                    session_id=session_id
+                                )
+                                
+                                return html, css, js
                     
                     except Exception as e:
                         print(f"Thinking mode attempt failed: {str(e)}. Falling back to regular tool approach.")
