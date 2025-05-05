@@ -1,3 +1,8 @@
+settings:
+  max_drafts: 10
+  max_iterations: 10
+  extended_thinking_mode: False
+
 templates:
 
   secondary_science_template: |

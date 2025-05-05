@@ -2,8 +2,9 @@ import os
 import re
 import base64
 import datetime
+import json
 from fasthtml.common import *
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from pathlib import Path
@@ -12,12 +13,25 @@ import zipfile
 import io
 from PIL import Image
 from components.html5_form import create_html5_form, create_code_editors
+import yaml  # Add import for yaml config
 
 # Import token tracking functionality
 import token_count
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# Load config.yaml for settings
+try:
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    SETTINGS = config.get('settings', {})
+    EXTENDED_THINKING_MODE = SETTINGS.get('extended_thinking_mode', False)
+    print(f"Loaded settings from config.yaml. Extended thinking mode: {EXTENDED_THINKING_MODE}")
+except Exception as e:
+    print(f"Error loading config.yaml: {e}. Using default settings.")
+    EXTENDED_THINKING_MODE = False
+    SETTINGS = {}
 
 # Global history backup storage
 # This will store history by user ID to handle multiple users
@@ -27,8 +41,270 @@ GLOBAL_HISTORY = {}
 # Format: { user_id: { 'current': { 'html': '...', 'css': '...', 'js': '...' }, 'previous': { 'html': '...', 'css': '...', 'js': '...' } } }
 GLOBAL_CODE_STORAGE = {}
 
-# Define a global variable to store refinement history for each user
-GLOBAL_REFINEMENT_HISTORY = {}
+# Redis client for drafts storage
+redis_client = None
+try:
+    import redis
+    REDIS_URL = os.environ.get('HTML5_REDIS_URL')
+    if not REDIS_URL:
+        print("Warning: HTML5_REDIS_URL environment variable not set. Using default localhost connection.")
+        REDIS_URL = "redis://localhost:6379/0"
+    
+    redis_client = redis.from_url(REDIS_URL)
+    redis_client.ping()  # Test connection
+    print("Connected to Redis successfully for drafts storage")
+except Exception as e:
+    print(f"Error connecting to Redis for drafts: {str(e)}. Using fallback in-memory storage.")
+    redis_client = None
+
+# In-memory fallback for drafts when Redis is not available
+DRAFTS_MEMORY = {}
+
+# Draft management functions
+def save_draft(user_id, html, css, js):
+    """
+    Save a draft of HTML5 content to Redis or memory fallback
+    
+    Args:
+        user_id (str): User ID
+        html (str): HTML content
+        css (str): CSS content
+        js (str): JavaScript content
+        
+    Returns:
+        str: Draft ID
+    """
+    if not user_id:
+        user_id = "anonymous"
+    
+    timestamp = datetime.datetime.now().isoformat()
+    draft_data = {
+        "html": html,
+        "css": css,
+        "js": js,
+        "timestamp": timestamp
+    }
+    
+    # Create a unique draft ID using timestamp
+    unique_draft_id = f"{int(datetime.datetime.now().timestamp())}"
+    
+    if redis_client:
+        try:
+            # Check if we've reached the draft limit (10)
+            user_drafts_key = f"html5_drafts:{user_id}"
+            current_drafts = redis_client.hkeys(user_drafts_key)
+            if len(current_drafts) >= 10:
+                return None, "Draft limit reached"
+            
+            # Save the draft with unique ID
+            redis_client.hset(user_drafts_key, unique_draft_id, json.dumps(draft_data))
+            
+            print(f"Saved draft {unique_draft_id} for user {user_id}")
+            return unique_draft_id, None
+        except Exception as e:
+            print(f"Error saving draft to Redis: {str(e)}. Falling back to memory.")
+            
+            # Fallback to memory
+            if user_id not in DRAFTS_MEMORY:
+                DRAFTS_MEMORY[user_id] = {}
+            
+            # Check if we've reached the draft limit
+            if len(DRAFTS_MEMORY[user_id]) >= 10:
+                return None, "Draft limit reached"
+            
+            DRAFTS_MEMORY[user_id][unique_draft_id] = draft_data
+            
+            return unique_draft_id, None
+    else:
+        # Direct memory storage
+        if user_id not in DRAFTS_MEMORY:
+            DRAFTS_MEMORY[user_id] = {}
+        
+        # Check if we've reached the draft limit
+        if len(DRAFTS_MEMORY[user_id]) >= 10:
+            return None, "Draft limit reached"
+        
+        DRAFTS_MEMORY[user_id][unique_draft_id] = draft_data
+        
+        return unique_draft_id, None
+
+def get_all_drafts(user_id):
+    """
+    Get all drafts for a user
+    
+    Args:
+        user_id (str): User ID
+        
+    Returns:
+        list: List of draft objects with id and timestamp
+    """
+    if not user_id:
+        user_id = "anonymous"
+    
+    drafts = []
+    
+    if redis_client:
+        try:
+            # Get all drafts for this user
+            user_drafts_key = f"html5_drafts:{user_id}"
+            draft_ids = redis_client.hkeys(user_drafts_key)
+            
+            for draft_id in draft_ids:
+                draft_id_str = draft_id.decode('utf-8') if isinstance(draft_id, bytes) else draft_id
+                draft_data_str = redis_client.hget(user_drafts_key, draft_id)
+                if draft_data_str:
+                    draft_data = json.loads(draft_data_str)
+                    drafts.append({
+                        "id": draft_id_str,
+                        "timestamp": draft_data.get("timestamp", "Unknown")
+                    })
+            
+            # Sort drafts by timestamp (newest first)
+            drafts.sort(key=lambda x: x["timestamp"], reverse=True)
+            return drafts
+        except Exception as e:
+            print(f"Error getting drafts from Redis: {str(e)}. Falling back to memory.")
+            
+            # Fallback to memory
+            if user_id in DRAFTS_MEMORY:
+                for draft_id, draft_data in DRAFTS_MEMORY[user_id].items():
+                    drafts.append({
+                        "id": draft_id,
+                        "timestamp": draft_data.get("timestamp", "Unknown")
+                    })
+                
+                # Sort drafts by timestamp (newest first)
+                drafts.sort(key=lambda x: x["timestamp"], reverse=True)
+            
+            return drafts
+    else:
+        # Direct memory retrieval
+        if user_id in DRAFTS_MEMORY:
+            for draft_id, draft_data in DRAFTS_MEMORY[user_id].items():
+                drafts.append({
+                    "id": draft_id,
+                    "timestamp": draft_data.get("timestamp", "Unknown")
+                })
+            
+            # Sort drafts by timestamp (newest first)
+            drafts.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return drafts
+
+def get_draft(user_id, draft_id):
+    """
+    Get a specific draft for a user
+    
+    Args:
+        user_id (str): User ID
+        draft_id (str): Draft ID
+        
+    Returns:
+        dict: Draft data or None if not found
+    """
+    if not user_id:
+        user_id = "anonymous"
+    
+    if redis_client:
+        try:
+            # Get the draft from Redis
+            user_drafts_key = f"html5_drafts:{user_id}"
+            draft_data_str = redis_client.hget(user_drafts_key, draft_id)
+            
+            if draft_data_str:
+                return json.loads(draft_data_str)
+            return None
+        except Exception as e:
+            print(f"Error getting draft from Redis: {str(e)}. Falling back to memory.")
+            
+            # Fallback to memory
+            if user_id in DRAFTS_MEMORY and draft_id in DRAFTS_MEMORY[user_id]:
+                return DRAFTS_MEMORY[user_id][draft_id]
+            return None
+    else:
+        # Direct memory retrieval
+        if user_id in DRAFTS_MEMORY and draft_id in DRAFTS_MEMORY[user_id]:
+            return DRAFTS_MEMORY[user_id][draft_id]
+        return None
+
+def delete_draft(user_id, draft_id):
+    """
+    Delete a specific draft for a user
+    
+    Args:
+        user_id (str): User ID
+        draft_id (str): Draft ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if not user_id:
+        user_id = "anonymous"
+    
+    if redis_client:
+        try:
+            # Delete the draft from Redis
+            user_drafts_key = f"html5_drafts:{user_id}"
+            result = redis_client.hdel(user_drafts_key, draft_id)
+            
+            return result > 0
+        except Exception as e:
+            print(f"Error deleting draft from Redis: {str(e)}. Falling back to memory.")
+            
+            # Fallback to memory
+            if user_id in DRAFTS_MEMORY and draft_id in DRAFTS_MEMORY[user_id]:
+                del DRAFTS_MEMORY[user_id][draft_id]
+                return True
+            return False
+    else:
+        # Direct memory deletion
+        if user_id in DRAFTS_MEMORY and draft_id in DRAFTS_MEMORY[user_id]:
+            del DRAFTS_MEMORY[user_id][draft_id]
+            return True
+        return False
+
+def delete_all_drafts(user_id):
+    """
+    Delete all drafts for a user
+    
+    Args:
+        user_id (str): User ID
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if not user_id:
+        user_id = "anonymous"
+    
+    if redis_client:
+        try:
+            # Delete all drafts from Redis
+            user_drafts_key = f"html5_drafts:{user_id}"
+            # Get all draft IDs first
+            draft_ids = redis_client.hkeys(user_drafts_key)
+            
+            if draft_ids:
+                # Delete each draft individually
+                for draft_id in draft_ids:
+                    redis_client.hdel(user_drafts_key, draft_id)
+                
+                print(f"Deleted all {len(draft_ids)} drafts for user {user_id}")
+                return True
+            return False
+        except Exception as e:
+            print(f"Error deleting all drafts from Redis: {str(e)}. Falling back to memory.")
+            
+            # Fallback to memory
+            if user_id in DRAFTS_MEMORY:
+                DRAFTS_MEMORY[user_id] = {}
+                return True
+            return False
+    else:
+        # Direct memory deletion
+        if user_id in DRAFTS_MEMORY:
+            DRAFTS_MEMORY[user_id] = {}
+            return True
+        return False
 
 #try and load the environment variables
 if os.getenv("OPENAI_API_KEY") is None:
@@ -592,10 +868,7 @@ def routes(rt):
             del GLOBAL_CODE_STORAGE[user_id]
             print(f"Cleared global code storage for user {user_id}")
             
-        # Clear the refinement history for this user
-        if user_id in GLOBAL_REFINEMENT_HISTORY:
-            del GLOBAL_REFINEMENT_HISTORY[user_id]
-            print(f"Cleared refinement history for user {user_id}")
+        # Refinement history feature removed – no action required
         
         # Clear old history for backward compatibility
         if user_id in GLOBAL_HISTORY:
@@ -619,12 +892,11 @@ def routes(rt):
             var runButton = document.getElementById('run-preview-button');
             var clearButton = document.getElementById('clear-button');
             var zipButton = document.getElementById('create-zip-button');
-            var previousButton = document.getElementById('previous-interactive-button');
+            // Previous interactive button removed
             
             if (runButton) runButton.classList.add('hidden');
             if (clearButton) clearButton.classList.add('hidden');
             if (zipButton) zipButton.classList.add('hidden');
-            if (previousButton) previousButton.classList.add('hidden');
             
             // Clear HTML5 Prompt text area directly
             var promptTextarea = document.getElementById('prompt');
@@ -729,12 +1001,11 @@ def routes(rt):
                     const runButton = document.getElementById('run-preview-button');
                     const clearButton = document.getElementById('clear-button');
                     const zipButton = document.getElementById('create-zip-button');
-                    const previousButton = document.getElementById('previous-interactive-button');
+                    // Previous interactive button removed
                     
                     if (runButton) runButton.classList.remove('hidden');
                     if (clearButton) clearButton.classList.remove('hidden');
                     if (zipButton) zipButton.classList.remove('hidden');
-                    if (previousButton) previousButton.classList.remove('hidden');
                     
                     // Auto-trigger preview
                     setTimeout(function() {{
@@ -929,11 +1200,18 @@ def routes(rt):
     async def post(req):
         """Create a downloadable ZIP file with index.html for SLS"""
         try:
+            # Get user ID from session
+            user_id = req.session.get('auth', 'anonymous')
+            
             # Get form data
             form = await req.form()
             html = form.get('html-editor', '')
             css = form.get('css-editor', '')
             js = form.get('js-editor', '')
+            
+            # When creating a ZIP, delete all drafts
+            delete_all_drafts(user_id)
+            print(f"Deleted all drafts for user {user_id} after ZIP creation")
             
             # Prevent empty requests
             if not html and not css and not js:
@@ -996,9 +1274,13 @@ def routes(rt):
             # Get user ID from session for storage
             user_id = req.session.get('auth', 'anonymous')
             
+            # Delete all drafts when generating new code
+            delete_all_drafts(user_id)
+            print(f"Deleted all drafts for user {user_id} before new generation")
+            
             # Clear any existing refinement history
-            if user_id in GLOBAL_REFINEMENT_HISTORY:
-                del GLOBAL_REFINEMENT_HISTORY[user_id]
+            if user_id in GLOBAL_CODE_STORAGE:
+                del GLOBAL_CODE_STORAGE[user_id]
                 print(f"Cleared refinement history for user {user_id} before new generation")
                 
             # Get current state from session or global storage
@@ -1326,6 +1608,15 @@ def routes(rt):
             
             print(f"Current code lengths - HTML: {len(current_html)}, CSS: {len(current_css)}, JS: {len(current_js)}")
             
+            if current_html or current_css or current_js:
+                # Before refining, save current content as a draft
+                draft_id, error = save_draft(user_id, current_html, current_css, current_js)
+                
+                if error:
+                    print(f"Warning: Could not save draft: {error}")
+                else:
+                    print(f"Saved draft {draft_id} for user {user_id} before refinement")
+            
             # Store current code as previous before refinement
             if current_html or current_css or current_js:
                 # Initialize storage for this user if needed
@@ -1357,15 +1648,7 @@ def routes(rt):
             prompt = form.get('prompt', '')
             model = form.get('model', 'gpt-4o')
             
-            # Store refinement instruction in history if it's not empty
-            if prompt and prompt.strip():
-                # Initialize refinement history for this user if needed
-                if user_id not in GLOBAL_REFINEMENT_HISTORY:
-                    GLOBAL_REFINEMENT_HISTORY[user_id] = []
-                
-                # Add the prompt to the history
-                GLOBAL_REFINEMENT_HISTORY[user_id].append(prompt.strip())
-                print(f"Added refinement instruction to history for user {user_id}")
+            # Refinement history feature removed – do not store prompts
             
             # For refinement, always use iterative mode
             is_iterative = True
@@ -1543,8 +1826,8 @@ def routes(rt):
             user_id = req.session.get('auth', 'anonymous')
             
             # Clear any existing refinement history
-            if user_id in GLOBAL_REFINEMENT_HISTORY:
-                del GLOBAL_REFINEMENT_HISTORY[user_id]
+            if user_id in GLOBAL_CODE_STORAGE:
+                del GLOBAL_CODE_STORAGE[user_id]
                 print(f"Cleared refinement history for user {user_id} after ZIP upload")
                 
             print(f"\n----- UPLOAD ZIP DEBUG -----")
@@ -1910,12 +2193,10 @@ def routes(rt):
                     const runButton = document.getElementById('run-preview-button');
                     const clearButton = document.getElementById('clear-button');
                     const zipButton = document.getElementById('create-zip-button');
-                    const previousButton = document.getElementById('previous-interactive-button');
                     
                     if (runButton) runButton.classList.remove('hidden');
                     if (clearButton) clearButton.classList.remove('hidden');
                     if (zipButton) zipButton.classList.remove('hidden');
-                    if (previousButton) previousButton.classList.remove('hidden');
                     
                     // Auto-trigger preview
                     setTimeout(function() {{
@@ -1939,27 +2220,133 @@ def routes(rt):
                 cls="bg-red-800 text-white p-2 mb-4 rounded"
             )
 
-    @rt('/api/html5/get-refinement-history')
+    @rt('/api/html5/get-drafts')
     async def get(req):
-        """Get the refinement history for the current user"""
+        """Get all drafts for the current user"""
         # Get user ID from session
         user_id = req.session.get('auth', 'anonymous')
         
-        # Get the refinement history from global storage
-        history = []
-        if user_id in GLOBAL_REFINEMENT_HISTORY:
-            history = GLOBAL_REFINEMENT_HISTORY[user_id]
+        # Get all drafts for this user
+        drafts = get_all_drafts(user_id)
         
-        # Return the history as a simple HTML list without dates/times
-        if not history:
-            return NotStr('<div class="text-gray-400 italic p-3">No refinement history yet</div>')
+        # Return the drafts
+        return JSONResponse({
+            "success": True,
+            "drafts": drafts
+        })
+    
+    @rt('/api/html5/load-draft/{draft_id}')
+    async def get(req):
+        """Load a specific draft for the current user"""
+        # Get user ID from session
+        user_id = req.session.get('auth', 'anonymous')
         
-        history_html = '<div class="p-3 bg-gray-800 rounded overflow-y-auto max-h-64">'
-        for prompt in history:
-            history_html += f'<div class="mb-2 pb-2 border-b border-gray-700">{prompt}</div>'
-        history_html += '</div>'
+        # Get the draft ID from the path
+        draft_id = req.path_params.get("draft_id")
         
-        return NotStr(history_html)
+        if not draft_id:
+            return JSONResponse({
+                "success": False,
+                "error": "No draft ID provided"
+            }, status_code=400)
+        
+        # Get the draft
+        draft = get_draft(user_id, draft_id)
+        
+        if not draft:
+            return JSONResponse({
+                "success": False,
+                "error": "Draft not found"
+            }, status_code=404)
+        
+        # Update session with draft content
+        req.session['html'] = draft.get('html', '')
+        req.session['css'] = draft.get('css', '')
+        req.session['js'] = draft.get('js', '')
+        
+        # Update global storage
+        if user_id not in GLOBAL_CODE_STORAGE:
+            GLOBAL_CODE_STORAGE[user_id] = {}
+        
+        # Save current state as previous before updating with draft
+        if 'current' in GLOBAL_CODE_STORAGE[user_id]:
+            GLOBAL_CODE_STORAGE[user_id]['previous'] = dict(GLOBAL_CODE_STORAGE[user_id]['current'])
+        
+        # Update current state with draft content
+        GLOBAL_CODE_STORAGE[user_id]['current'] = {
+            'html': draft.get('html', ''),
+            'css': draft.get('css', ''),
+            'js': draft.get('js', '')
+        }
+        
+        # Return the draft content
+        return JSONResponse({
+            "success": True,
+            "html": draft.get('html', ''),
+            "css": draft.get('css', ''),
+            "js": draft.get('js', ''),
+            "timestamp": draft.get('timestamp')
+        })
+    
+    @rt('/api/html5/delete-draft/{draft_id}')
+    async def delete(req):
+        """Delete a specific draft for the current user"""
+        # Get user ID from session
+        user_id = req.session.get('auth', 'anonymous')
+        
+        # Get the draft ID from the path
+        draft_id = req.path_params.get("draft_id")
+        
+        if not draft_id:
+            return JSONResponse({
+                "success": False,
+                "error": "No draft ID provided"
+            }, status_code=400)
+        
+        # Delete the draft
+        success = delete_draft(user_id, draft_id)
+        
+        if not success:
+            return JSONResponse({
+                "success": False,
+                "error": "Draft not found or could not be deleted"
+            }, status_code=404)
+        
+        # Return success
+        return JSONResponse({
+            "success": True,
+            "message": "Draft deleted successfully"
+        })
+
+    @rt('/api/html5/delete-draft-post/{draft_id}')
+    async def post(req):
+        """Delete a specific draft using POST method (alternative to DELETE)"""
+        # Get user ID from session
+        user_id = req.session.get('auth', 'anonymous')
+        
+        # Get the draft ID from the path
+        draft_id = req.path_params.get("draft_id")
+        
+        if not draft_id:
+            return JSONResponse({
+                "success": False,
+                "error": "No draft ID provided"
+            }, status_code=400)
+        
+        # Delete the draft
+        success = delete_draft(user_id, draft_id)
+        
+        if not success:
+            return JSONResponse({
+                "success": False,
+                "error": "Draft not found or could not be deleted"
+            }, status_code=404)
+        
+        # Return success
+        return JSONResponse({
+            "success": True,
+            "message": "Draft deleted successfully"
+        })
 
 async def generate_html5_code(prompt, images, model, is_iterative, current_html, current_css, current_js, user_id="anonymous", session_id=None):
     """Generate HTML5 code using the specified model"""
@@ -2119,16 +2506,13 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 )
                 prompt_tokens = token_count_response.input_tokens
                 print("Message content: ", message_content)
-                # Make the actual API call
-                response = client.messages.create(
-                    model=model,
-                    max_tokens=8192,
-                    # thinking={
-                    #     "type": "enabled",
-                    #     "budget_tokens":16000
-                    # },# Use a more reasonable token limit
-                    temperature=0.4,
-                    tools=[
+                
+                # Create API call parameters
+                api_params = {
+                    "model": model,
+                    "max_tokens": 8192,  # Default token limit
+                    "temperature": 0.4,
+                    "tools": [
                         {
                             "name": "extract_code_components",
                             "description": "Extract HTML, CSS, and JavaScript components from the generated code. All three components MUST be included for a complete interactive HTML5 experience.",
@@ -2152,14 +2536,128 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                             }
                         }
                     ],
-                    tool_choice={"type": "tool", "name": "extract_code_components"},
-                    messages=[
+                    "messages": [
                         {
                             "role": "user",
                             "content": message_content
                         }
                     ]
-                )
+                }
+                
+                # Claude API doesn't support both thinking mode and forced tool_choice together
+                # So we need to choose one approach or the other
+                if EXTENDED_THINKING_MODE:
+                    try:
+                        print("Using extended thinking mode without forced tool_choice")
+                        # First try with thinking enabled but without forcing tool_choice
+                        thinking_params = api_params.copy()
+                        thinking_params["thinking"] = {
+                            "type": "enabled",
+                            "budget_tokens": 16000  # Allocate budget for extended thinking
+                        }
+                        # Set max_tokens higher than thinking budget_tokens
+                        thinking_params["max_tokens"] = 32000  # Must be greater than budget_tokens
+                        
+                        # Don't force tool choice when using thinking mode
+                        # Let the model decide whether to use the tool
+                        
+                        # Make the API call with thinking mode
+                        response = client.messages.create(**thinking_params)
+                        
+                        # Process the response
+                        if response and hasattr(response, 'content') and len(response.content) > 0:
+                            tool_use_found = False
+                            text_content = ""
+                            thinking_content = ""
+                            
+                            # Extract content from response
+                            for content in response.content:
+                                if content.type == 'tool_use':
+                                    tool_use_found = True
+                                    tool_name = content.name
+                                    tool_input = content.input
+                                    
+                                    if tool_name == 'extract_code_components':
+                                        html = tool_input.get('html', '')
+                                        css = tool_input.get('css', '')
+                                        js = tool_input.get('javascript', '')
+                                        print(f"Successfully extracted components from thinking-mode response - HTML: {len(html)} chars, CSS: {len(css)} chars, JS: {len(js)} chars")
+                                elif content.type == 'text':
+                                    text_content += content.text + "\n"
+                                elif content.type == 'thinking':
+                                    thinking_content = content.thinking
+                                    print(f"Received thinking content: {len(thinking_content)} chars")
+                            
+                            # Save thinking content if available
+                            if thinking_content:
+                                try:
+                                    thinking_dir = Path("thinking_logs")
+                                    thinking_dir.mkdir(exist_ok=True)
+                                    thinking_file = thinking_dir / f"thinking_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                                    with open(thinking_file, "w") as f:
+                                        f.write(thinking_content)
+                                    print(f"Saved thinking content to {thinking_file}")
+                                except Exception as e:
+                                    print(f"Could not save thinking content: {e}")
+                            
+                            # If tool was used, extract components
+                            if tool_use_found and html and (css or True) and js:
+                                # Record token usage
+                                completion_tokens = response.usage.output_tokens
+                                total_tokens = prompt_tokens + completion_tokens
+                                
+                                # Calculate generation time
+                                end_time = datetime.datetime.now()
+                                generation_time_ms = (end_time - start_time).total_seconds() * 1000
+                                
+                                # Save token usage to database
+                                token_count.record_token_usage(
+                                    model=model,
+                                    prompt=prompt if prompt else None,
+                                    prompt_tokens=prompt_tokens,
+                                    completion_tokens=completion_tokens,
+                                    total_tokens=total_tokens,
+                                    user_id=user_id,
+                                    session_id=session_id,
+                                    generation_time_ms=generation_time_ms
+                                )
+                                
+                                return html, css, js
+                            
+                            # If no tool was used or components are missing, try to extract from text content
+                            if text_content:
+                                print("Extracting components from thinking-mode response text content")
+                                html, css, js = extract_components(text_content)
+                                
+                                # If we have valid components, return them
+                                if html and js:  # CSS is optional
+                                    # Record token usage
+                                    completion_tokens = response.usage.output_tokens
+                                    total_tokens = prompt_tokens + completion_tokens
+                                    
+                                    # Save token usage to database
+                                    token_count.record_token_usage(
+                                        model=model,
+                                        prompt=prompt if prompt else None,
+                                        prompt_tokens=prompt_tokens,
+                                        completion_tokens=completion_tokens,
+                                        total_tokens=total_tokens,
+                                        user_id=user_id,
+                                        session_id=session_id
+                                    )
+                                    
+                                    return html, css, js
+                    
+                    except Exception as e:
+                        print(f"Thinking mode attempt failed: {str(e)}. Falling back to regular tool approach.")
+                
+                # Either thinking mode is disabled, or thinking mode attempt failed
+                # Use the standard approach with forced tool_choice but no thinking
+                api_params["tool_choice"] = {"type": "tool", "name": "extract_code_components"}
+                print("Using standard approach with forced tool_choice")
+                
+                # Make the actual API call with the parameters
+                response = client.messages.create(**api_params)
                 
                 if response:
                     print(f"Received response from Claude. Type: {type(response)}")
@@ -2168,8 +2666,9 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                     if hasattr(response, 'content') and len(response.content) > 0:
                         tool_use_found = False
                         text_content = ""
+                        thinking_content = ""
                         
-                        # First pass: look for tool use
+                        # First pass: look for tool use and thinking content
                         for content in response.content:
                             if content.type == 'tool_use':
                                 tool_use_found = True
@@ -2197,6 +2696,22 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                                         print("WARNING: JavaScript missing from tool use, will try to extract from text content")
                             elif content.type == 'text':
                                 text_content += content.text + "\n"
+                            elif content.type == 'thinking' and EXTENDED_THINKING_MODE:
+                                thinking_content = content.thinking
+                                print(f"Received thinking content: {len(thinking_content)} chars")
+                        
+                        # Save thinking content if available (for logging/debugging purposes)
+                        if thinking_content and EXTENDED_THINKING_MODE:
+                            # This is optional - you can save the thinking content to a file for analysis
+                            try:
+                                thinking_dir = Path("thinking_logs")
+                                thinking_dir.mkdir(exist_ok=True)
+                                thinking_file = thinking_dir / f"thinking_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                                with open(thinking_file, "w") as f:
+                                    f.write(thinking_content)
+                                print(f"Saved thinking content to {thinking_file}")
+                            except Exception as e:
+                                print(f"Could not save thinking content: {e}")
                         
                         # If we found tool use but are missing JavaScript, try to extract from text content
                         if tool_use_found and not js and text_content:

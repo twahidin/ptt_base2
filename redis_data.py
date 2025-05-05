@@ -77,6 +77,70 @@ def get_all_submissions():
             all_submissions.append(submission)
     return all_submissions
 
+def get_all_draft_keys():
+    """Get all draft-related keys in Redis"""
+    return redis_client.keys("html5_drafts:*") + redis_client.keys("html5_drafts_count:*")
+
+def get_drafts_by_user():
+    """Get count of drafts by user"""
+    draft_keys = redis_client.keys("html5_drafts:*")
+    user_drafts = {}
+    
+    for key in draft_keys:
+        user_id = key.decode('utf-8').split(':')[1] if isinstance(key, bytes) else key.split(':')[1]
+        draft_count = redis_client.hlen(key)
+        user_drafts[user_id] = draft_count
+    
+    return user_drafts
+
+def delete_all_drafts(user_id=None):
+    """
+    Delete all drafts for a specific user or all users
+    
+    Args:
+        user_id (str, optional): User ID to delete drafts for. If None, delete all drafts.
+        
+    Returns:
+        tuple: (deleted_count, deleted_keys) - Number of drafts deleted and keys deleted
+    """
+    if user_id:
+        # Delete drafts for a specific user
+        user_drafts_key = f"html5_drafts:{user_id}"
+        user_count_key = f"html5_drafts_count:{user_id}"
+        
+        # Get all draft IDs for this user
+        draft_ids = redis_client.hkeys(user_drafts_key)
+        deleted_count = 0
+        
+        if draft_ids:
+            # Delete each draft
+            for draft_id in draft_ids:
+                deleted_count += redis_client.hdel(user_drafts_key, draft_id)
+            
+            # Reset the draft count
+            redis_client.delete(user_count_key)
+            
+            return deleted_count, 2  # Count drafts and the count key
+        return 0, 0
+    else:
+        # Delete all drafts for all users
+        draft_keys = get_all_draft_keys()
+        deleted_keys = 0
+        total_drafts = 0
+        
+        for key in draft_keys:
+            key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+            
+            # For draft hash, count the drafts first
+            if key_str.startswith("html5_drafts:"):
+                total_drafts += redis_client.hlen(key)
+            
+            # Delete the key
+            redis_client.delete(key)
+            deleted_keys += 1
+        
+        return total_drafts, deleted_keys
+
 def get_submissions_by_gallery_type(gallery_type):
     """Get submissions filtered by gallery type"""
     all_submissions = get_all_submissions()
@@ -184,6 +248,14 @@ def main():
     
     # Show Redis info
     subparsers.add_parser('info', help='Show Redis server information')
+    
+    # Delete drafts
+    delete_drafts_parser = subparsers.add_parser('delete-drafts', help='Delete all HTML5 drafts')
+    delete_drafts_parser.add_argument('--user', help='User ID to delete drafts for (if omitted, delete all drafts)')
+    delete_drafts_parser.add_argument('--confirm', action='store_true', help='Confirm deletion without prompting')
+    
+    # List drafts
+    list_drafts_parser = subparsers.add_parser('list-drafts', help='List HTML5 drafts by user')
     
     # Parse arguments
     args = parser.parse_args()
@@ -306,6 +378,58 @@ def main():
                     print(f"  {key}: {value}")
             else:
                 print(f"{section}: {data}")
+    
+    elif args.command == 'delete-drafts':
+        user_id = args.user
+        
+        # Get draft counts first
+        if user_id:
+            user_drafts = get_drafts_by_user()
+            draft_count = user_drafts.get(user_id, 0)
+            print(f"Found {draft_count} drafts for user {user_id}")
+        else:
+            user_drafts = get_drafts_by_user()
+            total_drafts = sum(user_drafts.values())
+            print(f"Found {total_drafts} total drafts across {len(user_drafts)} users")
+            
+            if user_drafts:
+                print("\nDrafts by user:")
+                for uid, count in user_drafts.items():
+                    print(f"  {uid}: {count} drafts")
+        
+        # Confirm deletion
+        if not args.confirm:
+            if user_id:
+                confirm = input(f"Are you sure you want to delete all drafts for user {user_id}? (y/n): ")
+            else:
+                confirm = input("Are you sure you want to delete ALL drafts for ALL users? (y/n): ")
+                
+            if confirm.lower() != 'y':
+                print("Deletion cancelled")
+                return
+        
+        # Delete drafts
+        deleted_drafts, deleted_keys = delete_all_drafts(user_id)
+        
+        if user_id:
+            print(f"Deleted {deleted_drafts} drafts for user {user_id}")
+        else:
+            print(f"Deleted {deleted_drafts} drafts across {len(user_drafts)} users ({deleted_keys} Redis keys)")
+    
+    elif args.command == 'list-drafts':
+        user_drafts = get_drafts_by_user()
+        total_drafts = sum(user_drafts.values())
+        
+        print(f"Found {total_drafts} total drafts across {len(user_drafts)} users")
+        
+        if user_drafts:
+            print("\nDrafts by user:")
+            table_data = []
+            for uid, count in user_drafts.items():
+                table_data.append([uid, count])
+            
+            headers = ['User ID', 'Draft Count']
+            print(tabulate(table_data, headers=headers, tablefmt='grid'))
     
     else:
         parser.print_help()

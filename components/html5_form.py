@@ -790,6 +790,175 @@ def create_html5_form(api_key=None):
                 flex-direction: column;
                 width: 100%;
             }
+
+            /* Draft accordion styles */
+            .drafts-accordion {
+                margin-top: 20px;
+                border: 1px solid #4a5568;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            
+            .drafts-header {
+                display: flex;
+                justify-content: space-between;
+                background-color: #2d3748;
+                padding: 10px 15px;
+                font-weight: 600;
+                color: #e2e8f0;
+                cursor: pointer;
+                border-bottom: 1px solid #4a5568;
+            }
+            
+            .drafts-header:hover {
+                background-color: #4a5568;
+            }
+            
+            .drafts-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+                background-color: #1a202c;
+            }
+            
+            .drafts-content.open {
+                max-height: 500px;
+                overflow-y: auto;
+            }
+            
+            .draft-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 15px;
+                border-bottom: 1px solid #2d3748;
+                transition: background-color 0.2s;
+            }
+            
+            .draft-item:hover {
+                background-color: #2d3748;
+            }
+            
+            .draft-info {
+                flex: 1;
+            }
+            
+            .draft-title {
+                font-weight: 500;
+                color: #a0aec0;
+            }
+            
+            .draft-timestamp {
+                font-size: 0.8rem;
+                color: #718096;
+            }
+            
+            .draft-actions {
+                display: flex;
+                gap: 8px;
+            }
+            
+            .draft-load-btn {
+                background-color: #3182ce;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.875rem;
+                transition: background-color 0.2s;
+            }
+            
+            .draft-load-btn:hover {
+                background-color: #2c5282;
+            }
+            
+            .draft-delete-btn {
+                background-color: #e53e3e;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.875rem;
+                transition: background-color 0.2s;
+            }
+            
+            .draft-delete-btn:hover {
+                background-color: #c53030;
+            }
+            
+            .no-drafts-message {
+                padding: 15px;
+                color: #718096;
+                text-align: center;
+            }
+            
+            /* Draft limit warning */
+            .draft-limit-warning {
+                display: none;
+                padding: 10px;
+                background-color: #c53030;
+                color: white;
+                margin-bottom: 15px;
+                border-radius: 4px;
+                font-weight: 500;
+            }
+            
+            .draft-limit-warning.visible {
+                display: block;
+            }
+
+            /* Toast notification */
+            .toast-notification {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background-color: #2d3748;
+                color: #fff;
+                border-left: 4px solid #4299e1;
+                border-radius: 4px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                opacity: 0;
+                transform: translateY(20px);
+                transition: opacity 0.3s, transform 0.3s;
+                z-index: 1000;
+                max-width: 400px;
+            }
+
+            .toast-notification.show {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            
+            /* Add function to show toast notifications */
+            function showToast(message, duration = 3000) {
+                // Remove any existing toast
+                const existingToast = document.querySelector('.toast-notification');
+                if (existingToast) {
+                    existingToast.remove();
+                }
+                
+                // Create new toast
+                const toast = document.createElement('div');
+                toast.className = 'toast-notification';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                // Show toast
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 10);
+                
+                // Hide toast after duration
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, duration);
+            }
         """),
         
         H2("HTML5 Interactive Editor", cls="text-center text-xl font-bold mb-4 text-white drop-shadow-md editor-title bright-white"),
@@ -903,7 +1072,7 @@ def create_html5_form(api_key=None):
                     cls="main-tab-panel active"
                 ),
                 
-                # Iteration Tab Panel (empty for now)
+                # Refinement Tab Panel (with added drafts accordion)
                 Div(
                     Form(
                         # Hidden API Key
@@ -931,6 +1100,13 @@ def create_html5_form(api_key=None):
                                 cls="w-full p-2 border rounded"
                             ),
                             cls="mb-4"
+                        ),
+                        
+                        # Draft limit warning message
+                        Div(
+                            "You've reached the maximum of 10 drafts. Please delete at least one draft before creating a new one.",
+                            id="draft-limit-warning",
+                            cls="draft-limit-warning"
                         ),
                         
                         # Help section for refinement
@@ -981,31 +1157,6 @@ def create_html5_form(api_key=None):
                         
                         # Rich Text Editor for refinement prompt (half the height)
                         Div(
-                            # Refinement History expandable tab
-                            Details(
-                                Summary(
-                                    Div(
-                                        "Refinement History (Click to Expand)",
-                                        Svg(
-                                            Path(d="M19 9l-7 7-7-7", stroke="currentColor", stroke_width="2", fill="none"),
-                                            viewBox="0 0 24 24", 
-                                            width="16", 
-                                            height="16",
-                                            cls="ml-2"
-                                        ),
-                                        cls="flex items-center"
-                                    ),
-                                    cls="cursor-pointer font-semibold text-blue-400 hover:text-blue-300 border-2 border-blue-400 p-2 rounded hover:bg-gray-800 flex items-center justify-between w-full"
-                                ),
-                                Div(
-                                    id="refinement-history-content",
-                                    cls="p-3 bg-gray-800 rounded-b text-gray-300 mt-2",
-                                    hx_get="/api/html5/get-refinement-history",
-                                    hx_trigger="load, revealed"
-                                ),
-                                cls="mb-4 border border-gray-600 rounded"
-                            ),
-                            
                             # Clear button positioned between history and textarea
                             Button(
                                 Div(
@@ -1097,6 +1248,37 @@ def create_html5_form(api_key=None):
                         enctype="multipart/form-data",
                         cls="space-y-4",
                     ),
+                    
+                    # Drafts accordion
+                    Div(
+                        Div(
+                            Div("Previous Drafts", cls="flex-1"),
+                            Div(
+                                Svg(
+                                    Path(d="M19 9l-7 7-7-7", stroke="currentColor", stroke_width="2", fill="none"),
+                                    viewBox="0 0 24 24", 
+                                    width="16", 
+                                    height="16",
+                                ),
+                                cls="drafts-toggle-icon"
+                            ),
+                            cls="drafts-header",
+                            onclick="toggleDraftsAccordion()"
+                        ),
+                        Div(
+                            Div(
+                                "No drafts available yet. Refine your HTML5 content to create a draft.",
+                                cls="no-drafts-message",
+                                id="no-drafts-message"
+                            ),
+                            Div(id="drafts-list"),
+                            cls="drafts-content",
+                            id="drafts-content"
+                        ),
+                        cls="drafts-accordion mt-6",
+                        id="drafts-accordion"
+                    ),
+                    
                     id="refinement-panel",
                     cls="main-tab-panel"
                 ),
@@ -1151,7 +1333,7 @@ def create_html5_form(api_key=None):
                                 cls="flex items-center justify-center"
                             ),
                             id="create-zip-button",
-                            cls="action-button bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-2 rounded-md hidden",
+                            cls="action-button bg-gradient-to-r from-indigo-600 to-indigo-500 px-5 py-2 rounded-md",
                             onclick="createZipPackage(); return false;"
                         ),
                         
@@ -1172,25 +1354,6 @@ def create_html5_form(api_key=None):
                             hx_target="#preview-container",
                             hx_trigger="click",
                             hx_swap="innerHTML",
-                            cls="action-button bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-2 rounded-md hidden",
-                        ),
-                        
-                        # Previous Interactive button
-                        Button(
-                            Div(
-                                Svg(
-                                    Path(d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z", fill="currentColor"),
-                                    viewBox="0 0 24 24", 
-                                    width="18", 
-                                    height="18"
-                                ),
-                                Span("Previous Interactive", cls="ml-2"),
-                                cls="flex items-center justify-center"
-                            ),
-                            id="previous-interactive-button",
-                            hx_post="/api/html5/load-previous",
-                            hx_target="#code-editors-container",
-                            hx_trigger="click",
                             cls="action-button bg-gradient-to-r from-purple-600 to-purple-500 px-5 py-2 rounded-md hidden",
                         ),
                         id="editor-buttons-container",
@@ -1425,38 +1588,90 @@ def create_html5_form(api_key=None):
                     form.addEventListener('submit', function(e) {
                         e.preventDefault();
                         
-                        // Show loading indicator
-                        document.getElementById('loading-indicator').style.display = 'block';
-                        
-                        // Create FormData object for proper file handling
-                        const formData = new FormData(form);
-                        
-                        // Use fetch API for the request
-                        fetch('/api/html5/generate-code', {
-                            method: 'POST',
-                            body: formData,
-                            // Don't set Content-Type header - the browser will set the correct boundary
-                        })
-                        .then(response => response.text())
-                        .then(html => {
-                            // Update the code editors container
-                            document.getElementById('code-editors-container').innerHTML = html;
-                            
-                            // Hide loading indicator
-                            document.getElementById('loading-indicator').style.display = 'none';
-                            
-                            // Trigger HTMX afterSwap event for compatibility
-                            const event = new CustomEvent('htmx:afterSwap', {
-                                detail: { target: document.getElementById('code-editors-container') }
+                        // Check if there are drafts that would be deleted
+                        fetch('/api/html5/get-drafts')
+                            .then(response => response.json())
+                            .then(data => {
+                                let shouldProceed = true;
+                                
+                                // If there are drafts, show a confirmation dialog
+                                if (data.drafts && data.drafts.length > 0) {
+                                    shouldProceed = confirm("Generating new content will delete all saved drafts. Are you sure you want to continue?");
+                                }
+                                
+                                if (shouldProceed) {
+                                    // Show loading indicator
+                                    document.getElementById('loading-indicator').style.display = 'block';
+                                    
+                                    // Create FormData object for proper file handling
+                                    const formData = new FormData(form);
+                                    
+                                    // Use fetch API for the request
+                                    fetch('/api/html5/generate-code', {
+                                        method: 'POST',
+                                        body: formData,
+                                        // Don't set Content-Type header - the browser will set the correct boundary
+                                    })
+                                    .then(response => response.text())
+                                    .then(html => {
+                                        // Update the code editors container
+                                        document.getElementById('code-editors-container').innerHTML = html;
+                                        
+                                        // Hide loading indicator
+                                        document.getElementById('loading-indicator').style.display = 'none';
+                                        
+                                        // Trigger HTMX afterSwap event for compatibility
+                                        const event = new CustomEvent('htmx:afterSwap', {
+                                            detail: { target: document.getElementById('code-editors-container') }
+                                        });
+                                        document.dispatchEvent(event);
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        document.getElementById('loading-indicator').style.display = 'none';
+                                        document.getElementById('code-editors-container').innerHTML = 
+                                            '<div class="error alert alert-danger">Error: ' + error.message + '</div>';
+                                    });
+                                } else {
+                                    console.log("Generation cancelled by user to preserve drafts");
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error checking drafts:', error);
+                                // Proceed anyway if we can't check drafts
+                                // Show loading indicator
+                                document.getElementById('loading-indicator').style.display = 'block';
+                                
+                                // Create FormData object for proper file handling
+                                const formData = new FormData(form);
+                                
+                                // Use fetch API for the request
+                                fetch('/api/html5/generate-code', {
+                                    method: 'POST',
+                                    body: formData,
+                                    // Don't set Content-Type header - the browser will set the correct boundary
+                                })
+                                .then(response => response.text())
+                                .then(html => {
+                                    // Update the code editors container
+                                    document.getElementById('code-editors-container').innerHTML = html;
+                                    
+                                    // Hide loading indicator
+                                    document.getElementById('loading-indicator').style.display = 'none';
+                                    
+                                    // Trigger HTMX afterSwap event for compatibility
+                                    const event = new CustomEvent('htmx:afterSwap', {
+                                        detail: { target: document.getElementById('code-editors-container') }
+                                    });
+                                    document.dispatchEvent(event);
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    document.getElementById('loading-indicator').style.display = 'none';
+                                    document.getElementById('code-editors-container').innerHTML = 
+                                        '<div class="error alert alert-danger">Error: ' + error.message + '</div>';
+                                });
                             });
-                            document.dispatchEvent(event);
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            document.getElementById('loading-indicator').style.display = 'none';
-                            document.getElementById('code-editors-container').innerHTML = 
-                                '<div class="error alert alert-danger">Error: ' + error.message + '</div>';
-                        });
                     });
                 });
 
@@ -1473,7 +1688,6 @@ def create_html5_form(api_key=None):
                         const runButton = document.getElementById('run-preview-button');
                         const zipButton = document.getElementById('create-zip-button');
                         const clearButton = document.getElementById('clear-button');
-                        const previousButton = document.getElementById('previous-interactive-button');
                         
                         // Show them all by removing the hidden class
                         if (runButton) {
@@ -1487,10 +1701,6 @@ def create_html5_form(api_key=None):
                         if (clearButton) {
                             clearButton.classList.remove('hidden');
                             console.log('Clear button visible');
-                        }
-                        if (previousButton) {
-                            previousButton.classList.remove('hidden');
-                            console.log('Previous Interactive button visible');
                         }
                         
                         // Auto-trigger preview
@@ -1714,8 +1924,14 @@ def create_html5_form(api_key=None):
                             e.stopPropagation();
                             
                             console.log("ZIP button clicked via direct handler");
-                            // Always use our direct handler
-                            createZipPackage();
+                            
+                            // Add confirmation dialog for draft deletion
+                            if (confirm("Creating a ZIP will delete all saved drafts. Are you sure you want to continue?")) {
+                                // Always use our direct handler
+                                createZipPackage();
+                            } else {
+                                console.log("ZIP creation cancelled by user");
+                            }
                             
                             // Return false to be extra sure
                             return false;
@@ -1817,19 +2033,25 @@ def create_html5_form(api_key=None):
                                 });
                                 document.dispatchEvent(event);
                                 
-                                // Refresh the refinement history after submission
-                                const historyContent = document.getElementById('refinement-history-content');
-                                if (historyContent) {
-                                    // Use fetch to get the updated history
-                                    fetch('/api/html5/get-refinement-history')
-                                        .then(response => response.text())
-                                        .then(history => {
-                                            historyContent.innerHTML = history;
-                                        });
-                                }
+                                // Show success toast for draft creation
+                                showToast("Draft saved and code refined successfully!");
                                 
                                 // Switch back to the editors view after refinement
                                 switchMainTab('generation', null);
+                                
+                                // Load drafts to update the list
+                                loadDrafts();
+                                
+                                // Open the drafts accordion to show the updated drafts list
+                                const draftsContent = document.getElementById('drafts-content');
+                                if (draftsContent && !draftsContent.classList.contains('open')) {
+                                    draftsContent.classList.add('open');
+                                    // Update arrow icon if needed
+                                    const icon = document.querySelector('.drafts-toggle-icon svg');
+                                    if (icon) {
+                                        icon.innerHTML = '<path d="M19 15l-7-7-7 7" stroke="currentColor" stroke-width="2" fill="none"></path>';
+                                    }
+                                }
                             })
                             .catch(error => {
                                 console.error('Error:', error);
@@ -1865,6 +2087,260 @@ def create_html5_form(api_key=None):
                                 .then(() => console.log("Refinement history cleared after new generation"));
                         });
                     }
+                });
+
+                // Drafts accordion handling
+                function toggleDraftsAccordion() {
+                    const content = document.getElementById('drafts-content');
+                    content.classList.toggle('open');
+                    
+                    // Toggle the arrow icon
+                    const icon = document.querySelector('.drafts-toggle-icon svg');
+                    if (content.classList.contains('open')) {
+                        icon.innerHTML = '<path d="M19 15l-7-7-7 7" stroke="currentColor" stroke-width="2" fill="none"></path>';
+                    } else {
+                        icon.innerHTML = '<path d="M19 9l-7 7-7-7" stroke="currentColor" stroke-width="2" fill="none"></path>';
+                    }
+                    
+                    // Load drafts when opening
+                    if (content.classList.contains('open')) {
+                        loadDrafts();
+                    }
+                }
+                
+                function loadDrafts() {
+                    fetch('/api/html5/get-drafts')
+                        .then(response => response.json())
+                        .then(data => {
+                            const draftsList = document.getElementById('drafts-list');
+                            const noDraftsMessage = document.getElementById('no-drafts-message');
+                            
+                            // Clear existing content
+                            draftsList.innerHTML = '';
+                            
+                            if (data.drafts && data.drafts.length > 0) {
+                                // Hide no drafts message
+                                noDraftsMessage.style.display = 'none';
+                                
+                                // Create draft items
+                                data.drafts.forEach(draft => {
+                                    const draftElement = document.createElement('div');
+                                    draftElement.className = 'draft-item';
+                                    draftElement.innerHTML = `
+                                        <div class="draft-info">
+                                            <div class="draft-title">Draft ${draft.id}</div>
+                                            <div class="draft-timestamp">${new Date(draft.timestamp).toLocaleString()}</div>
+                                        </div>
+                                        <div class="draft-actions">
+                                            <button class="draft-load-btn" onclick="loadDraft('${draft.id}')">Use This</button>
+                                            <button class="draft-delete-btn" onclick="deleteDraft('${draft.id}')">Delete</button>
+                                        </div>
+                                    `;
+                                    draftsList.appendChild(draftElement);
+                                });
+                                
+                                // Check if we're at the limit
+                                if (data.drafts.length >= 10) {
+                                    document.getElementById('draft-limit-warning').classList.add('visible');
+                                } else {
+                                    document.getElementById('draft-limit-warning').classList.remove('visible');
+                                }
+                            } else {
+                                // Show no drafts message
+                                noDraftsMessage.style.display = 'block';
+                                document.getElementById('draft-limit-warning').classList.remove('visible');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading drafts:', error);
+                        });
+                }
+                
+                function loadDraft(draftId) {
+                    fetch(`/api/html5/load-draft/${draftId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Check if code editors exist first
+                                if (!document.getElementById('html-editor') || 
+                                    !document.getElementById('css-editor') || 
+                                    !document.getElementById('js-editor')) {
+                                    
+                                    console.log("Code editors not found, creating them first");
+                                    
+                                    // Get the container where editors should be
+                                    const editorContainer = document.getElementById('code-editors-container');
+                                    if (!editorContainer) {
+                                        console.error("Editor container not found");
+                                        if (typeof showToast === 'function') {
+                                            showToast('Error: Editor container not found. Please refresh and try again.', 5000);
+                                        } else {
+                                            alert('Error: Editor container not found. Please refresh and try again.');
+                                        }
+                                        return;
+                                    }
+                                    
+                                    // Create minimal editor structure
+                                    editorContainer.innerHTML = `
+                                        <div class="tab-header">
+                                            <button id="html-tab" type="button" class="tab active" onclick="switchTab('html')">HTML</button>
+                                            <button id="css-tab" type="button" class="tab" onclick="switchTab('css')">CSS</button>
+                                            <button id="js-tab" type="button" class="tab" onclick="switchTab('js')">JavaScript</button>
+                                        </div>
+                                        <div id="html-panel" class="tab-panel active">
+                                            <textarea id="html-editor" name="html-editor" class="code-editor" placeholder="Write your HTML here..."></textarea>
+                                        </div>
+                                        <div id="css-panel" class="tab-panel">
+                                            <textarea id="css-editor" name="css-editor" class="code-editor" placeholder="Write your CSS here..."></textarea>
+                                        </div>
+                                        <div id="js-panel" class="tab-panel">
+                                            <textarea id="js-editor" name="js-editor" class="code-editor" placeholder="Write your JavaScript here..."></textarea>
+                                        </div>
+                                        <style>
+                                            .tab-panel {
+                                                display: none;
+                                                padding: 16px;
+                                                background-color: #1a202c;
+                                                border-bottom-left-radius: 0.5rem;
+                                                border-bottom-right-radius: 0.5rem;
+                                                border: 1px solid #2d3748;
+                                                border-top: none;
+                                            }
+                                            .tab-panel.active {
+                                                display: block;
+                                            }
+                                            .code-editor {
+                                                width: 100%;
+                                                min-height: 300px;
+                                                background-color: #2d3748;
+                                                color: #e2e8f0;
+                                                font-family: 'Fira Code', 'Consolas', monospace;
+                                                padding: 1rem;
+                                                border: 1px solid #4a5568;
+                                                border-radius: 0.375rem;
+                                                resize: vertical;
+                                                line-height: 1.5;
+                                                font-size: 0.875rem;
+                                                transition: border-color 0.2s ease;
+                                            }
+                                            .code-editor:focus {
+                                                outline: none;
+                                                border-color: #4299e1;
+                                                box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+                                            }
+                                        </style>
+                                    `;
+                                    
+                                    // Make sure UI buttons are visible
+                                    const runButton = document.getElementById('run-preview-button');
+                                    const clearButton = document.getElementById('clear-button');
+                                    const zipButton = document.getElementById('create-zip-button');
+                                    
+                                    if (runButton) runButton.classList.remove('hidden');
+                                    if (clearButton) clearButton.classList.remove('hidden');
+                                    if (zipButton) clearButton.classList.remove('hidden');
+                                }
+                                
+                                // Now update editors with the draft content
+                                if (document.getElementById('html-editor')) {
+                                    document.getElementById('html-editor').value = data.html || '';
+                                }
+                                if (document.getElementById('css-editor')) {
+                                    document.getElementById('css-editor').value = data.css || '';
+                                }
+                                if (document.getElementById('js-editor')) {
+                                    document.getElementById('js-editor').value = data.js || '';
+                                }
+                                
+                                // Run preview
+                                const runButton = document.getElementById('run-preview-button');
+                                if (runButton) {
+                                    runButton.click();
+                                } else {
+                                    // If run button doesn't exist yet, create a temporary one and trigger it
+                                    console.log("Run button not found, creating a temporary one");
+                                    const tempButton = document.createElement('button');
+                                    tempButton.style.display = 'none';
+                                    tempButton.setAttribute('hx-post', '/api/html5/preview');
+                                    tempButton.setAttribute('hx-target', '#preview-container');
+                                    tempButton.setAttribute('hx-include', '#html-editor,#css-editor,#js-editor');
+                                    document.body.appendChild(tempButton);
+                                    
+                                    // Add a slight delay to ensure elements are properly initialized
+                                    setTimeout(() => {
+                                        // Use HTMX API to trigger the request
+                                        if (typeof htmx !== 'undefined') {
+                                            htmx.trigger(tempButton, 'click');
+                                            // Remove the temporary button after use
+                                            setTimeout(() => tempButton.remove(), 1000);
+                                        }
+                                    }, 500);
+                                }
+                                
+                                // Show success notification
+                                if (typeof showToast === 'function') {
+                                    showToast('Draft loaded successfully!');
+                                } else {
+                                    alert('Draft loaded successfully!');
+                                }
+                            } else {
+                                if (typeof showToast === 'function') {
+                                    showToast('Error loading draft: ' + data.error, 5000);
+                                } else {
+                                    alert('Error loading draft: ' + data.error);
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading draft:', error);
+                            if (typeof showToast === 'function') {
+                                showToast('Error loading draft: ' + error.message, 5000);
+                            } else {
+                                alert('Error loading draft.');
+                            }
+                        });
+                }
+                
+                function deleteDraft(draftId) {
+                    if (confirm('Are you sure you want to delete this draft?')) {
+                        fetch(`/api/html5/delete-draft-post/${draftId}`, {
+                            method: 'POST'
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Reload drafts list
+                                    loadDrafts();
+                                    
+                                    // Show success notification
+                                    if (typeof showToast === 'function') {
+                                        showToast('Draft deleted successfully!');
+                                    } else {
+                                        alert('Draft deleted successfully!');
+                                    }
+                                } else {
+                                    if (typeof showToast === 'function') {
+                                        showToast('Error deleting draft: ' + data.error, 5000);
+                                    } else {
+                                        alert('Error deleting draft: ' + data.error);
+                                    }
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error deleting draft:', error);
+                                if (typeof showToast === 'function') {
+                                    showToast('Error deleting draft: ' + error.message, 5000);
+                                } else {
+                                    alert('Error deleting draft.');
+                                }
+                            });
+                    }
+                }
+                
+                // Check drafts count on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Wait a moment for everything to initialize
+                    setTimeout(loadDrafts, 1000);
                 });
         """)
     )
@@ -2004,3 +2480,33 @@ def create_code_editors(html="", css="", js=""):
         id="code-editors-container",
         cls="code-editor-wrapper"
     )
+
+Script("""
+            // Toast notification function
+            function showToast(message, duration = 3000) {
+                // Remove any existing toast
+                const existingToast = document.querySelector('.toast-notification');
+                if (existingToast) {
+                    existingToast.remove();
+                }
+                
+                // Create new toast
+                const toast = document.createElement('div');
+                toast.className = 'toast-notification';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                // Show toast
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 10);
+                
+                // Hide toast after duration
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, duration);
+            }
+        """)
