@@ -2,6 +2,43 @@ from fasthtml.common import Titled, Container, Div
 from components.forms import create_login_form
 from ptt_bascode.authentication import check_password
 from starlette.responses import RedirectResponse, JSONResponse
+import redis
+import os
+
+# Redis connection for cache clearing
+redis_client = None
+try:
+    REDIS_URL = os.environ.get('HTML5_REDIS_URL', "redis://localhost:6379/0")
+    redis_client = redis.from_url(REDIS_URL)
+    redis_client.ping()  # Test connection
+except Exception as e:
+    print(f"Auth module: Error connecting to Redis: {str(e)}")
+    redis_client = None
+
+def clear_preview_cache():
+    """Clear all HTML preview caches from Redis"""
+    if not redis_client:
+        print("Redis not available, preview cache not cleared during logout")
+        return 0
+    
+    try:
+        # Get all preview cache keys
+        preview_keys = redis_client.keys("gallery_preview_html_*")
+        
+        if not preview_keys:
+            return 0
+        
+        # Delete all preview cache keys
+        deleted_count = 0
+        for key in preview_keys:
+            redis_client.delete(key)
+            deleted_count += 1
+        
+        print(f"Logout: Cleared {deleted_count} preview caches")
+        return deleted_count
+    except Exception as e:
+        print(f"Error clearing preview cache during logout: {str(e)}")
+        return 0
 
 def hx_redirect(url, status_code=303):
     """
@@ -81,7 +118,12 @@ def routes(rt):
     async def logout_get(request):
         """Handle GET requests to /logout."""
         if 'auth' in request.session:
+            # Clear the user's session
             del request.session['auth']
+            
+            # Clear the preview cache when logging out
+            clear_preview_cache()
+            
         redirect_url = '/login'
         if request.headers.get("HX-Request"):
             return hx_redirect(redirect_url)

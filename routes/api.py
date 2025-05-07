@@ -208,7 +208,10 @@ def get_all_submissions():
             for sid in submission_ids:
                 submission_data = redis_client.hget("submission", sid)
                 if submission_data:
-                    all_submissions.append(json.loads(submission_data))
+                    submission = json.loads(submission_data)
+                    # Add ID to the submission data
+                    submission['id'] = sid.decode('utf-8') if isinstance(sid, bytes) else sid
+                    all_submissions.append(submission)
             return all_submissions
         except Exception as e:
             print(f"Error getting all submissions from Redis: {str(e)}. Falling back to memory storage.")
@@ -555,7 +558,11 @@ def routes(router):
     @router.get("/api/gallery/preview/{submission_id}")
     async def preview_interactive(req: Request):
         try:
-            submission_id = int(req.path_params.get("submission_id"))
+            submission_id = req.path_params.get("submission_id")
+            
+            # If the ID is a numeric string, convert to int as that's how older submissions are stored
+            if submission_id.isdigit():
+                submission_id = int(submission_id)
             
             # Get submission from Redis or memory
             submission = get_submission(submission_id)
@@ -638,6 +645,11 @@ def routes(router):
     async def get_asset(req: Request):
         try:
             submission_id = req.path_params.get("submission_id")
+            
+            # If the ID is a numeric string, convert to int as that's how older submissions are stored
+            if submission_id.isdigit():
+                submission_id = int(submission_id)
+                
             asset_path = req.path_params.get("asset_path")
             
             print(f"Asset request: {asset_path} for submission {submission_id}")
@@ -813,6 +825,44 @@ def routes(router):
             
         except Exception as e:
             print(f"Error in cleanup endpoint: {str(e)}")
+            return JSONResponse(
+                {"error": str(e)},
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @router.get("/api/maintenance/clear-preview-cache")
+    async def clear_preview_cache(req: Request):
+        """
+        Endpoint to clear all preview HTML caches
+        """
+        try:
+            if not redis_client:
+                return JSONResponse({
+                    "error": "Redis not available"
+                }, status_code=500)
+                
+            # Get all preview cache keys
+            preview_keys = redis_client.keys("gallery_preview_html_*")
+            
+            if not preview_keys:
+                return JSONResponse({
+                    "success": True,
+                    "message": "No preview caches found"
+                })
+            
+            # Delete all preview cache keys
+            deleted_count = 0
+            for key in preview_keys:
+                redis_client.delete(key)
+                deleted_count += 1
+            
+            return JSONResponse({
+                "success": True,
+                "message": f"Cleared {deleted_count} preview caches"
+            })
+            
+        except Exception as e:
+            print(f"Error clearing preview caches: {str(e)}")
             return JSONResponse(
                 {"error": str(e)},
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR

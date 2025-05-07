@@ -323,7 +323,7 @@ def create_gallery_submissions_grid(submissions):
                                 "Preview",
                                 href="#",
                                 cls="gallery-preview-btn",
-                                data_id=str(submissions.index(submission)),
+                                data_id=submission.get('id').decode('utf-8') if isinstance(submission.get('id'), bytes) else submission.get('id', str(submissions.index(submission))),
                                 data_title=submission.get('title', 'Interactive Preview'),
                                 onclick=f"previewInteractive(this); return false;"
                             ),

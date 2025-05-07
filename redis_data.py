@@ -73,7 +73,8 @@ def get_all_submissions():
         submission_data = redis_client.hget("submission", sid)
         if submission_data:
             submission = json.loads(submission_data)
-            submission['id'] = sid  # Add ID to the submission data
+            # Convert byte ID to string to ensure consistency
+            submission['id'] = sid.decode('utf-8') if isinstance(sid, bytes) else sid
             all_submissions.append(submission)
     return all_submissions
 
