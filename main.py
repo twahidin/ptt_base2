@@ -397,7 +397,10 @@ def create_side_menu(active_menu=None):
         {
             "id": "tokens", 
             "name": "Token Usage Monitoring",
-            "has_submenu": False
+            "has_submenu": True,
+            "submenu": [
+                {"id": "tokens/replace_zip", "name": "Replace Interactive ZIP"}
+            ]
         }
     ]
     
@@ -519,10 +522,251 @@ def get():
     )
 
 @rt("/tokens")
-def get():
+def get(req):
+    auth = req.session.get('auth')
+    # Redirect to replace_zip page by default
     return Div(
         H2("Token Usage Monitoring"),
-        P("This is the Token Usage Monitoring content area."),
+        P("Please select an option from the submenu."),
+        cls="menu-content"
+    )
+
+@rt("/tokens/replace_zip")
+def get(req):
+    auth = req.session.get('auth')
+    
+    # Only allow access to joe and super_admin
+    if auth not in ["joe", "super_admin"]:
+        return Div(
+            H2("Access Denied"),
+            P("You do not have permission to access this page."),
+            cls="menu-content error"
+        )
+    
+    return Div(
+        H2("Replace Interactive ZIP File"),
+        P("Select an interactive from the table below and upload a new ZIP file to replace the existing one."),
+        Div(
+            id="interactives-table-container",
+            cls="table-container",
+            hx_get="/api/gallery/list-interactives",
+            hx_trigger="load"
+        ),
+        Script("""
+            function showReplaceForm(id, title) {
+                document.getElementById('replace-form-container').style.display = 'block';
+                document.getElementById('selected-interactive-id').value = id;
+                document.getElementById('selected-interactive-title').textContent = title;
+            }
+            
+            function validateZipFile(fileInput) {
+                const zipValidationMessage = document.getElementById('zip-validation-message');
+                
+                if (fileInput.files.length === 0) {
+                    zipValidationMessage.textContent = '';
+                    return false;
+                }
+                
+                const file = fileInput.files[0];
+                
+                // Check file type
+                if (!file.name.toLowerCase().endsWith('.zip')) {
+                    zipValidationMessage.textContent = 'Please upload a ZIP file.';
+                    return false;
+                }
+                
+                // Check file size (max 50MB)
+                const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+                if (file.size > maxSize) {
+                    zipValidationMessage.textContent = 'ZIP file must be less than 50MB.';
+                    return false;
+                }
+                
+                zipValidationMessage.textContent = '';
+                return true;
+            }
+            
+            async function replaceZipFile() {
+                const id = document.getElementById('selected-interactive-id').value;
+                const zipFile = document.getElementById('replacement-zip').files[0];
+                const resultMessage = document.getElementById('result-message');
+                const submitButton = document.getElementById('replace-submit-btn');
+                
+                if (!id || !zipFile) {
+                    resultMessage.innerHTML = '<p class="error">Please select an interactive and upload a ZIP file.</p>';
+                    return;
+                }
+                
+                if (!validateZipFile(document.getElementById('replacement-zip'))) {
+                    return;
+                }
+                
+                // Show loading state
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner"></span> Uploading...';
+                resultMessage.innerHTML = '';
+                
+                try {
+                    // Upload ZIP file to blob storage
+                    const zipResponse = await fetch('/api/blob/upload?filename=' + encodeURIComponent(zipFile.name), {
+                        method: 'POST',
+                        body: zipFile
+                    });
+                    
+                    if (!zipResponse.ok) {
+                        throw new Error('Failed to upload ZIP file');
+                    }
+                    
+                    const zipData = await zipResponse.json();
+                    
+                    // Update the interactive with the new ZIP URL
+                    const updateResponse = await fetch('/api/gallery/update-zip', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            id: id,
+                            zipUrl: zipData.url
+                        })
+                    });
+                    
+                    if (!updateResponse.ok) {
+                        throw new Error('Failed to update interactive');
+                    }
+                    
+                    const updateData = await updateResponse.json();
+                    
+                    // Show success message
+                    resultMessage.innerHTML = '<p class="success-message">ZIP file replaced successfully!</p>';
+                    
+                    // Refresh the interactives table
+                    document.getElementById('interactives-table-container').setAttribute('hx-trigger', 'load');
+                    
+                } catch (error) {
+                    console.error('Error replacing ZIP:', error);
+                    resultMessage.innerHTML = `<p class="error">Error replacing ZIP: ${error.message}</p>`;
+                } finally {
+                    // Reset button state
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = 'Replace ZIP File';
+                }
+            }
+        """),
+        
+        # Form for replacing ZIP file (initially hidden)
+        Div(
+            H3("Replace ZIP File"),
+            Form(
+                Input(type="hidden", id="selected-interactive-id", name="interactive-id"),
+                Div(
+                    Label("Selected Interactive: ", fr="selected-interactive-title"),
+                    Span(id="selected-interactive-title", style="font-weight: bold;"),
+                    cls="form-group"
+                ),
+                Div(
+                    Label("Upload new ZIP file", fr="replacement-zip"),
+                    Div(
+                        Input(
+                            type="file",
+                            id="replacement-zip",
+                            name="replacement-zip",
+                            accept=".zip",
+                            required=True,
+                            cls="form-control",
+                            onchange="validateZipFile(this)"
+                        ),
+                        Div(id="zip-validation-message", cls="text-sm text-red-500 mt-1"),
+                        cls="mb-2"
+                    ),
+                    cls="form-group"
+                ),
+                Div(
+                    Button(
+                        "Replace ZIP File",
+                        type="button",
+                        id="replace-submit-btn",
+                        cls="btn btn-primary",
+                        onclick="replaceZipFile()"
+                    ),
+                    cls="form-group"
+                ),
+                Div(id="result-message"),
+                id="replace-zip-form",
+                cls="mt-4"
+            ),
+            id="replace-form-container",
+            style="display: none; margin-top: 2rem; padding: 1rem; border: 1px solid #2d3748; border-radius: 8px;"
+        ),
+        
+        Style("""
+            .table-container {
+                margin-top: 1rem;
+                overflow-x: auto;
+            }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 1rem;
+            }
+            
+            th, td {
+                padding: 0.75rem;
+                text-align: left;
+                border-bottom: 1px solid #2d3748;
+            }
+            
+            th {
+                background-color: #1a202c;
+                color: #48bb78 !important;
+            }
+            
+            tr:hover {
+                background-color: #2d3748;
+            }
+            
+            .btn-replace {
+                padding: 0.375rem 0.75rem;
+                background-color: #4299e1;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.875rem;
+            }
+            
+            .btn-replace:hover {
+                background-color: #3182ce;
+            }
+            
+            .spinner {
+                border: 3px solid rgba(0, 0, 0, 0.1);
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                border-left-color: white;
+                animation: spin 1s linear infinite;
+                display: inline-block;
+                margin-right: 0.5rem;
+                vertical-align: middle;
+            }
+            
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            .error {
+                color: #fc8181;
+                margin-top: 0.5rem;
+            }
+            
+            .success-message {
+                color: #48bb78;
+                margin-top: 0.5rem;
+            }
+        """),
         cls="menu-content"
     )
 

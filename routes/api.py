@@ -17,6 +17,7 @@ from pathlib import Path
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, HTMLResponse, FileResponse
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
+from datetime import datetime
 
 # Check for blob token
 BLOB_TOKEN = os.environ.get('BLOB_READ_WRITE_TOKEN')
@@ -863,6 +864,198 @@ def routes(router):
             
         except Exception as e:
             print(f"Error clearing preview caches: {str(e)}")
+            return JSONResponse(
+                {"error": str(e)},
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @router.get("/api/gallery/list-interactives")
+    async def list_interactives(req: Request):
+        try:
+            # Check authentication
+            auth = req.session.get('auth')
+            if auth not in ["joe", "super_admin"]:
+                return JSONResponse(
+                    {"error": "Unauthorized"},
+                    status_code=401
+                )
+                
+            # Get all submissions
+            all_submissions = get_all_submissions()
+            
+            # Return HTML table
+            html = """
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>Level</th>
+                        <th>Subject</th>
+                        <th>Gallery Type</th>
+                        <th>Date Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+            
+            for submission in all_submissions:
+                submission_id = submission.get('id')
+                if not submission_id:
+                    continue
+                    
+                title = submission.get('title', 'Untitled')
+                author = submission.get('author', 'Unknown')
+                level = submission.get('level', 'Unknown')
+                subject = submission.get('subject', 'Unknown')
+                gallery_type = submission.get('galleryType', 'Unknown')
+                date_submitted = submission.get('dateSubmitted', 'Unknown')
+                
+                # Format date for display
+                if date_submitted != 'Unknown':
+                    try:
+                        # Convert ISO date to more readable format
+                        dt = datetime.fromisoformat(date_submitted.replace('Z', '+00:00'))
+                        date_submitted = dt.strftime('%Y-%m-%d %H:%M')
+                    except:
+                        pass
+                
+                html += f"""
+                <tr>
+                    <td>{submission_id}</td>
+                    <td>{title}</td>
+                    <td>{author}</td>
+                    <td>{level}</td>
+                    <td>{subject}</td>
+                    <td>{gallery_type}</td>
+                    <td>{date_submitted}</td>
+                    <td>
+                        <button 
+                            class="btn-replace"
+                            onclick="showReplaceForm('{submission_id}', '{title.replace("'", "\\'")}')">
+                            Replace ZIP
+                        </button>
+                    </td>
+                </tr>
+                """
+            
+            html += """
+                </tbody>
+            </table>
+            """
+            
+            return HTMLResponse(html)
+            
+        except Exception as e:
+            print(f"Error listing interactives: {str(e)}")
+            return HTMLResponse(
+                f"<p class='error'>Error loading interactives: {str(e)}</p>",
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+    @router.post("/api/gallery/update-zip")
+    async def update_zip(req: Request):
+        try:
+            # Check authentication
+            auth = req.session.get('auth')
+            if auth not in ["joe", "super_admin"]:
+                return JSONResponse(
+                    {"error": "Unauthorized"},
+                    status_code=401
+                )
+                
+            # Parse request body
+            data = await req.json()
+            submission_id = data.get('id')
+            new_zip_url = data.get('zipUrl')
+            
+            if not submission_id or not new_zip_url:
+                return JSONResponse(
+                    {"error": "Missing required fields"},
+                    status_code=400
+                )
+            
+            # Get the submission
+            submission = get_submission(submission_id)
+            if not submission:
+                return JSONResponse(
+                    {"error": f"Submission with ID {submission_id} not found"},
+                    status_code=404
+                )
+            
+            # Store the old ZIP URL for reference
+            old_zip_url = submission.get('zipUrl')
+            
+            # Update the ZIP URL
+            submission['zipUrl'] = new_zip_url
+            
+            # Record the replacement in submission history if not already present
+            if 'replacementHistory' not in submission:
+                submission['replacementHistory'] = []
+                
+            submission['replacementHistory'].append({
+                'oldZipUrl': old_zip_url,
+                'newZipUrl': new_zip_url,
+                'replacedBy': auth,
+                'replacedAt': datetime.now().isoformat()
+            })
+            
+            # Update the submission in storage
+            if redis_client:
+                try:
+                    redis_client.hset("submission", submission_id, json.dumps(submission))
+                except Exception as e:
+                    print(f"Error updating submission in Redis: {str(e)}")
+                    return JSONResponse(
+                        {"error": f"Error updating submission: {str(e)}"},
+                        status_code=HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            else:
+                # Update in memory storage
+                try:
+                    # Find the submission in the list by ID
+                    for i, s in enumerate(submissions_memory):
+                        if str(s.get('id')) == str(submission_id):
+                            submissions_memory[i] = submission
+                            break
+                except Exception as e:
+                    print(f"Error updating submission in memory: {str(e)}")
+                    return JSONResponse(
+                        {"error": f"Error updating submission: {str(e)}"},
+                        status_code=HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+            
+            # Clear the HTML cache for this submission if it exists
+            if redis_client:
+                try:
+                    cache_key = f"gallery_preview_html_{submission_id}"
+                    if redis_client.exists(cache_key):
+                        redis_client.delete(cache_key)
+                        print(f"Cleared HTML cache for submission {submission_id}")
+                        
+                    # Also clear extracted ZIP if present
+                    if submission_id in extracted_zips:
+                        temp_dir, _ = extracted_zips.pop(submission_id)
+                        if os.path.exists(temp_dir):
+                            try:
+                                shutil.rmtree(temp_dir)
+                                print(f"Removed extracted ZIP for submission {submission_id}")
+                            except Exception as cleanup_error:
+                                print(f"Error removing extracted ZIP: {str(cleanup_error)}")
+                except Exception as e:
+                    print(f"Error clearing cache: {str(e)}")
+            
+            return JSONResponse({
+                "success": True,
+                "message": "ZIP file updated successfully",
+                "replacedZipUrl": old_zip_url,
+                "newZipUrl": new_zip_url
+            })
+            
+        except Exception as e:
+            print(f"Error updating ZIP: {str(e)}")
             return JSONResponse(
                 {"error": str(e)},
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR

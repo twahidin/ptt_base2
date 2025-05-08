@@ -2473,7 +2473,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
             from anthropic._exceptions import OverloadedError, APIStatusError
             
             try:
-                client = anthropic.Anthropic(api_key=anthropic_key)
+                client = anthropic.Anthropic(api_key=anthropic_key, timeout=360.0)
                 
                 # Build message content with images if available
                 message_content = [
@@ -2505,12 +2505,10 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                     ]
                 )
                 prompt_tokens = token_count_response.input_tokens
-                print("Message content: ", message_content)
-                
-                # Create API call parameters
+                print("Message content: ", message_content)                # Create API call parameters
                 api_params = {
                     "model": model,
-                    "max_tokens": 8192,  # Default token limit
+                    "max_tokens": 16000,  # Default token limit
                     "temperature": 0.4,
                     "tools": [
                         {
@@ -2553,11 +2551,12 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                         thinking_params = api_params.copy()
                         thinking_params["thinking"] = {
                             "type": "enabled",
-                            "budget_tokens": 16000  # Allocate budget for extended thinking
+                            "budget_tokens": 8192 # Allocate budget for extended thinking
                         }
                         # Set max_tokens higher than thinking budget_tokens
-                        thinking_params["max_tokens"] = 32000  # Must be greater than budget_tokens
-                        
+                        thinking_params["max_tokens"] = 10000 # Must be greater than budget_tokens
+                        #set temperature to 1
+                        thinking_params["temperature"] = 1
                         # Don't force tool choice when using thinking mode
                         # Let the model decide whether to use the tool
                         
@@ -3100,7 +3099,7 @@ async def generate_html5_code(prompt, images, model, is_iterative, current_html,
                 # Make the API call with function tools
                 response = client.chat.completions.create(
                     model=model,
-                    max_completion_tokens=8192,
+                    max_tokens=16000,
                     messages=messages,
                     tools=tools,
                     tool_choice={"type": "function", "function": {"name": "extract_code_components"}}
