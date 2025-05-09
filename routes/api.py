@@ -318,6 +318,26 @@ def extract_zip_and_process_html(zip_data, submission_id=None):
                     if head_end > 0:
                         html_content = html_content[:head_end] + f'<base href="{base_path}">' + html_content[head_end:]
                 
+                # # Process JavaScript files to update image paths
+                # js_files = [path for path in files_dict.values() if path.lower().endswith('.js')]
+                # for js_path in js_files:
+                #     try:
+                #         with open(js_path, 'r', encoding='utf-8', errors='replace') as f:
+                #             js_content = f.read()
+                        
+                #         # Replace image paths in JavaScript - targeting patterns like: image: "image/filename.png"
+                #         # This regex looks for image paths in JavaScript object properties
+                #         js_content = re.sub(
+                #             r'(image:\s*["\'])([\w\-./]+?)(["\'])',
+                #             lambda m: f'{m.group(1)}{base_path}{m.group(2)}{m.group(3)}' if not m.group(2).startswith(('http://', 'https://', '/')) else m.group(0),
+                #             js_content
+                #         )
+                        
+                #         with open(js_path, 'w', encoding='utf-8') as f:
+                #             f.write(js_content)
+                #     except Exception as e:
+                #         print(f"Error processing JavaScript file {js_path}: {str(e)}")
+                
                 # Store the extracted files for later retrieval
                 if submission_id:
                     extracted_zips[submission_id] = (temp_dir, files_dict)
@@ -348,6 +368,16 @@ def extract_zip_and_process_html(zip_data, submission_id=None):
                         elif file_rel_path.endswith('.js'):
                             with open(file_abs_path, 'r', encoding='utf-8', errors='replace') as f:
                                 js_content = f.read()
+                            
+                            # # Process image paths in JS files
+                            # js_content = re.sub(
+                            #     r'(image:\s*["\'])([\w\-./]+?)(["\'])',
+                            #     lambda m: f'{m.group(1)}data:image/png;base64,{base64.b64encode(open(os.path.join(temp_dir, m.group(2)), "rb").read()).decode("utf-8")}{m.group(3)}' 
+                            #     if os.path.exists(os.path.join(temp_dir, m.group(2))) and os.path.getsize(os.path.join(temp_dir, m.group(2))) < 100 * 1024 
+                            #     else m.group(0),
+                            #     js_content
+                            # )
+                            
                             # Find JS references in HTML and replace with inline content
                             pattern = f'<script[^>]*src=[\'"]({re.escape(file_rel_path)})[\'"][^>]*></script>'
                             replacement = f'<script>{js_content}</script>'

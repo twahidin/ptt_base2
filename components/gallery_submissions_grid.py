@@ -63,11 +63,41 @@ def create_gallery_submissions_grid(submissions):
                 color: #cbd5e0;
                 margin-top: 1rem;
                 margin-bottom: 1rem;
-                overflow: hidden;
-                display: -webkit-box;
-                -webkit-line-clamp: 3;
-                -webkit-box-orient: vertical;
                 line-height: 1.4;
+                max-height: 240px;
+                overflow-y: auto;
+                padding-right: 5px;
+                border: 1px solid #2d3748;
+                border-radius: 4px;
+                padding: 8px;
+            }
+            
+            .prompt-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }
+            
+            .copy-btn {
+                background-color: #2d3748;
+                color: #a0aec0;
+                border: none;
+                border-radius: 4px;
+                padding: 2px 8px;
+                font-size: 0.75rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            
+            .copy-btn:hover {
+                background-color: #4a5568;
+                color: white;
+            }
+            
+            .copy-btn.copied {
+                background-color: #48bb78;
+                color: white;
             }
             
             .gallery-images {
@@ -262,7 +292,15 @@ def create_gallery_submissions_grid(submissions):
                         # Display prompt if available
                         (
                             Div(
-                                H5("Base Prompt:", cls="text-sm font-semibold text-gray-400"),
+                                Div(
+                                    H5("Base Prompt:", cls="text-sm font-semibold text-gray-400"),
+                                    Button(
+                                        "Copy",
+                                        cls="copy-btn",
+                                        onclick=f"copyToClipboard(this.parentNode.nextElementSibling.textContent, this); return false;"
+                                    ),
+                                    cls="prompt-header"
+                                ),
                                 P(submission.get('prompt', ''), cls="gallery-prompt"),
                                 cls="mt-3"
                             )
@@ -273,7 +311,15 @@ def create_gallery_submissions_grid(submissions):
                         # Display description if available
                         (
                             Div(
-                                H5("Description:", cls="text-sm font-semibold text-gray-400"),
+                                Div(
+                                    H5("Description:", cls="text-sm font-semibold text-gray-400"),
+                                    Button(
+                                        "Copy",
+                                        cls="copy-btn",
+                                        onclick=f"copyToClipboard(this.parentNode.nextElementSibling.textContent, this); return false;"
+                                    ),
+                                    cls="prompt-header"
+                                ),
                                 P(submission.get('description', ''), cls="gallery-prompt"),
                                 cls="mt-3"
                             )
@@ -370,6 +416,37 @@ def create_gallery_submissions_grid(submissions):
             // Store current submission ID being previewed
             if (typeof window.currentPreviewId === 'undefined') {
                 window.currentPreviewId = null;
+            }
+            
+            // Function to copy text to clipboard
+            function copyToClipboard(text, button) {
+                // Create temporary textarea element
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';  // Avoid scrolling to bottom
+                document.body.appendChild(textarea);
+                textarea.select();
+                
+                try {
+                    // Execute copy command
+                    document.execCommand('copy');
+                    
+                    // Visual feedback - change button text and add class
+                    button.textContent = 'Copied!';
+                    button.classList.add('copied');
+                    
+                    // Reset button after 2 seconds
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                        button.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                    alert('Failed to copy text. Please try again.');
+                }
+                
+                // Clean up
+                document.body.removeChild(textarea);
             }
             
             function previewInteractive(element) {
