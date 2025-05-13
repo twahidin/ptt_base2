@@ -1,8 +1,3 @@
-settings:
-  max_drafts: 10
-  max_iterations: 10
-  extended_thinking_mode: False
-
 templates:
 
   secondary_science_template: |
@@ -408,25 +403,22 @@ templates:
 
   SLS_Interactive_Suggestion_Template: |
 
-    Select the Knowledge Base that is the text of "Print-Friendly Worksheet" to provide context.
+    {Select the Knowledge Base that is the text of "Print-Friendly Worksheet" to provide context.}
 
     Objective:
     Think outside the box: consider formats like a mini-game, choose-your-own-adventure, virtual lab, exploration quest, or simulation to reinforce learning.
     Focus on creating active learning experiences where students explore, discover, and engage deeply with the lesson concept.
     The experience should feel immersive, rewarding, and educational. 
-    Create a fully interactive, pedagogically sound, and engaging drag-and-drop learning activity using only HTML, CSS, and JavaScript (no external libraries). The output must be a single self-contained HTML file suitable for embedding within the Singapore Student Learning Space (SLS). The activity should facilitate learning through physical interaction for tasks like classification, sequencing, mapping, labeling, or assembly.
-
+    Create a fully interactive, pedagogically sound learning activity using only HTML, CSS, and JavaScript (no external libraries). The output must be a single self-contained HTML file suitable for embedding within the Singapore Student Learning Space (SLS). The activity should facilitate learning through physical interaction for tasks like classification, sequencing, mapping, labeling, or assembly.
 
     Ensure basic web accessibility (WCAG AA): sufficient color contrast, keyboard operability for drag-and-drop (e.g., using arrow keys and Enter/Space), ARIA attributes for roles and states, clear visual focus indicators.
-    
     User Interface Guidelines:
-
     Clearly distinguish between draggable elements and target zones using visual styling.
+    Make text black with background in light colors 
     Layout must support intuitive interaction: ensure ample space for drag operations, maintain clean organization of elements, use visual cues (shadows, highlights) for interaction states.
     Fit well within an iframe: width: 100%, height: 90% (approx.), strictly no internal scrollbars.
     
     Language & Terminology:
-
     Use clear, concise English appropriate for the target age group.
     Employ terminology consistent with the subject area and MOE syllabus.
 
