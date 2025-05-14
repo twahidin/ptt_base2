@@ -124,8 +124,8 @@ def create_recipe_carousel(recipe_templates):
         """),
         
         # Carousel HTML structure
-        H3("HTML5 Template Library", cls="text-lg font-bold mb-4 text-white"),
-        P("To start generating an interactive, scroll through a recipe and select the one that closely matched your envision interactive. In the recipe, fill in all the necessary information within the curly brackets and add additional instructions. If there are any unused instructions or optional fields that are not needed, remove them.", cls="text-sm text-gray-400 mb-4"),
+        H3("Generate Interactive", cls="text-lg font-bold mb-4 text-white"),
+        P("Select a recipe and enter details within the square brackets. You can remove unused fields or add new instructions for Authoring Copilot to generate your interactive.", cls="text-sm text-gray-400 mb-4"),
         Div(
             # Previous button
             Button(
@@ -1039,7 +1039,7 @@ def create_html5_form(api_key=None):
                             Textarea("", 
                                   id='prompt', 
                                   name='prompt', 
-                                  placeholder='This simulation/game/interactive graph should have the following aspects:\nTopic...\nDemonstrates...\nDisplay...\n(Primary) Bright and colourful buttons',
+                                  placeholder="The interactive should be based on the topic of [photosynthesis].It should demonstrate the concept of [plants producing more oxygen under greater light intensity during photosynthesis] and allow the user to interact with [light intensity] using a slider. Display the following key variables at all times, [number of bubbles, temperature and light intensity] with an animation of [gas bubbles being produced in an aquatic plant]. Display the output of a [graph of number of bubbles against light intensity].",
                                   rows=32,
                                   cls="w-full p-2 border rounded"),
                             cls="mb-4"
@@ -1047,8 +1047,8 @@ def create_html5_form(api_key=None):
                         
                         # File upload section - simplified to basic file inputs
                         Div(
-                            H3("Reference Images (Up to 5):", cls="block text-lg mb-2 text-blue-500"),
-                            P("Upload up to 5 reference images to help generate the interactive. Note that reference images will not appear or used as objects in the interactive. Example, you can upload what the interactive may look like at different stages of the simulation.", 
+                            H3("Knowledge Base", cls="block text-lg mb-2 text-blue-500"),
+                            P("Add materials for Authoring Copilot to reference when generating interactive. Authoring Copilot can use a maximum of 5 images as input to generate the interactive. For best results, upload at least one image that best represents the desired look of the interactive.", 
                               cls="text-sm text-gray-400 mb-4"),
                             
                             create_multiple_uploaders(5, "gen"),
@@ -1200,7 +1200,7 @@ def create_html5_form(api_key=None):
                             ),
                             
                             # Advisory text about clearing previous instructions
-                            P("⚠️ Please clear previous instructions before adding new ones to avoid duplicating refinements.", 
+                            P("⚠️ Please clear previous instructions before adding new ones to avoid duplicating refinements.Select a draft to add to your component or refine it further by using the recipes below or your own instructions. To start afresh, click Back to Generate Interactive.", 
                               cls="text-yellow-400 text-sm mb-3 font-medium"),
                             
                             # Basic textarea for initial render and as fallback
