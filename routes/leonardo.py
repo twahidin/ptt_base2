@@ -101,7 +101,6 @@ def routes(rt):
             height = int(form.get('height', 768))
             width = int(form.get('width', 1024))
             model_id = form.get('model_id', 'b24e16ff-06e3-43eb-8d33-4416c2d75876')
-            # b24e16ff-06e3-43eb-8d33-4416c2d75876
             
             # Initialize image data
             image_id = None
@@ -141,7 +140,7 @@ def routes(rt):
                     if not upload_response.ok:
                         return Div("Failed to upload image", 
                                 cls="error alert alert-danger")
-            print("Preset Style: ", preset_style )
+            
             # Prepare generation payload
             url = "https://cloud.leonardo.ai/api/rest/v1/generations"
             payload = {
@@ -209,57 +208,3 @@ def routes(rt):
             print(f"Error in generation: {str(e)}")
             return Div(f"An error occurred: {str(e)}", 
                     cls="error alert alert-danger")
-    
-    # @rt("/api/leonardo/generate")
-    # async def post(req):
-    #     form = await req.form()
-    #     try:
-    #         api_key = form.get('api_key', '').strip()
-    #         print("API Key:", api_key)
-    #         if not api_key:
-    #             return Div("Please configure your Leonardo AI API key first", 
-    #                     cls="error alert alert-warning")
-    #         prompt = form.get('prompt', '').strip()
-    #         if not prompt:
-    #             return Div("Please provide a prompt", 
-    #                     cls="error alert alert-warning")
-    #         num_images = int(form.get('num_images', 4))
-    #         preset_style = form.get('preset_style', 'DYNAMIC')
-    #         height = int(form.get('height', 768))
-    #         width = int(form.get('width', 1024))
-    #         model_id = form.get('model_id', 'b24e16ff-06e3-43eb-8d33-4416c2d75876')
-            
-    #         # Handle image upload if present
-    #         image_data = None
-    #         if form.get('use_image') == 'true':
-    #             image_data = await handle_image_upload(form)
-
-    #         url = "https://cloud.leonardo.ai/api/rest/v1/generations"
-    #         payload = {
-    #             "alchemy": True,
-    #             "height": height,
-    #             "width": width,
-    #             "modelId": model_id,
-    #             "num_images": num_images,
-    #             "presetStyle": preset_style,
-    #             "prompt": prompt,
-    #         }
-
-    #         if image_data:
-    #             payload["imagePrompts"] = [image_data]
-
-    #         headers = {
-    #             "accept": "application/json",
-    #             "content-type": "application/json",
-    #             "authorization": f"Bearer {api_key}"
-    #         }
-        
-    
-    #         # Start generation
-    #         response = requests.post(url, json=payload, headers=headers)
-    #         generation_id = response.json()['sdGenerationJob']['generationId']
-            
-    #         # Return generation ID for polling
-    #         return JSONResponse({"generation_id": generation_id})
-    #     except Exception as e:
-    #         return JSONResponse({"error": str(e)})

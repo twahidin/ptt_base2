@@ -4,6 +4,25 @@ from routes import setup_routes
 from starlette.middleware.sessions import SessionMiddleware
 import token_count
 import atexit
+from components.forms import create_leonardo_form, create_stability_form, create_stability_video_form
+import os
+from dotenv import load_dotenv
+import base64
+import asyncio
+import requests
+import time
+load_dotenv()
+
+# Load environment variables for API keys
+if os.getenv("LEONARDO_API_KEY") is None:
+    os.environ["LEONARDO_API_KEY"] = ""
+else:
+    os.environ["LEONARDO_API_KEY"] = os.getenv("LEONARDO_API_KEY")
+
+if os.getenv("STABILITY_API_KEY") is None:
+    os.environ["STABILITY_API_KEY"] = ""
+else:
+    os.environ["STABILITY_API_KEY"] = os.getenv("STABILITY_API_KEY")
 
 # Create the app with authentication
 login_redir = RedirectResponse('/login', status_code=303)
@@ -401,7 +420,19 @@ def create_side_menu(active_menu=None):
             "submenu": [
                 {"id": "tokens/replace_zip", "name": "Replace Interactive ZIP"}
             ]
+        },
+        # Image Generation Menu with submenus
+        {
+            "id": "image_generation", 
+            "name": "Image Generation Menu",
+            "has_submenu": True,
+            "submenu": [
+                {"id": "image_generation/stability", "name": "Stability AI Image"},
+                {"id": "stability-video", "name": "Stability AI Video"},
+                {"id": "image_generation/leonardo", "name": "Leonardo AI"}
+            ]
         }
+        
     ]
     
     menu_items = []
@@ -447,30 +478,7 @@ def create_side_menu(active_menu=None):
     
     return Ul(*menu_items, cls="side-menu")
 
-# Example route for menu content
-@rt("/menuA")
-def get():
-    return Div(
-        H2("Leonardo AI Generator"),
-        P("This is the Leonardo AI Generator content area."),
-        cls="menu-content"
-    )
 
-@rt("/menuB")
-def get():
-    return Div(
-        H2("Stability AI Generator"),
-        P("This is the Stability AI Generator content area."),
-        cls="menu-content"
-    )
-
-@rt("/menuC")
-def get():
-    return Div(
-        H2("Stability AI Video Generator"),
-        P("This is the Stability AI Video Generator content area."),
-        cls="menu-content"
-    )
 
 @rt("/menuD")
 def get():
@@ -515,6 +523,7 @@ def get():
 
 @rt("/menuE")
 def get():
+
     return Div(
         H2("Lea Chatbot"),
         P("This is the Lea Chatbot content area."),
@@ -770,7 +779,429 @@ def get(req):
         cls="menu-content"
     )
 
+@rt("/image_generation")
+def get(req):
+    auth = req.session.get('auth')
+    
+    # Only allow access to specific users
+    if auth not in ["zoe", "joe", "super_admin"]:
+        return Div(
+            H2("Access Denied"),
+            P("You do not have permission to access this page."),
+            cls="menu-content error"
+        )
+    return Div(
+        H2("Image Generation Menu"),
+        P("Please select an option from the submenu."),
+        cls="menu-content"
+    )
+
+@rt("/image_generation/stability")
+def get(req):
+    auth = req.session.get('auth')
+    
+    # Only allow access to specific users
+    if auth not in ["zoe", "joe", "super_admin"]:
+        return Div(
+            H2("Access Denied"),
+            P("You do not have permission to access this page."),
+            cls="menu-content error"
+        )
+    
+    api_key = os.environ["STABILITY_API_KEY"]
+    return Div(
+        H2("Stability AI Generator"),
+        create_stability_form(api_key),
+        cls="menu-content"
+    )
+
+@rt("/image_generation/leonardo")
+def get(req):
+    auth = req.session.get('auth')
+    
+    # Only allow access to specific users
+    if auth not in ["zoe", "joe", "super_admin"]:
+        return Div(
+            H2("Access Denied"),
+            P("You do not have permission to access this page."),
+            cls="menu-content error"
+        )
+    
+    api_key = os.environ["LEONARDO_API_KEY"]
+    return Div(
+        H2("Leonardo AI Generator"),
+        create_leonardo_form(api_key),
+        cls="menu-content"
+    )
+
+@rt("/stability-video")
+def get(req):
+    auth = req.session.get('auth')
+    
+    # Only allow access to specific users
+    if auth not in ["zoe", "joe", "super_admin"]:
+        return Div(
+            H2("Access Denied"),
+            P("You do not have permission to access this page."),
+            cls="menu-content error"
+        )
+    
+    api_key = os.environ["STABILITY_API_KEY"]
+    return Div(
+        H2("Stability AI Video Generator"),
+        create_stability_video_form(api_key),
+        cls="menu-content"
+    )
+
 # Register cleanup function to close database connections when application exits
 atexit.register(token_count.close_all_connections)
+
+# Add routes for Leonardo AI
+@rt("/input-type-change")
+async def post(req):
+    form = await req.form()
+    input_type = form.get('input_type')
+    
+    if input_type == 'text':
+        return Div(
+            Label("Text Prompt:"),
+            Textarea("", 
+                    id='prompt', 
+                    name='prompt', 
+                    placeholder='Enter your prompt',
+                    rows=3),
+            id="text-input",
+            cls="prompt-input"
+        )
+    else:  # image upload
+        return Div(
+            Label("Upload Image:"),
+            Input(
+                type="file",
+                name="image_file",
+                accept="image/*",
+                id="image-input",
+                cls="file-input block w-full mb-4",
+                hx_trigger="change",
+                hx_post="/preview-image",
+                hx_target="#image-preview",
+                hx_encoding="multipart/form-data"
+            ),
+            Div(id="image-preview", cls="mt-4"),
+            id="image-upload"
+        )
+
+@rt("/preview-image")
+async def post(req):
+    form = await req.form()
+    file = form.get('image_file')
+    if file and hasattr(file, 'file'):
+        content = await file.read()
+        base64_image = base64.b64encode(content).decode('utf-8')
+        return Img(
+            src=f"data:image/jpeg;base64,{base64_image}",
+            alt="Preview",
+            cls="max-w-sm h-auto rounded"
+        )
+    return ""
+
+@rt("/clear-results")
+def post():
+    return ""  # Returns empty content to clear the results div
+
+# Add routes for Stability AI
+@rt("/stability-type-change")
+async def post(req):
+    form = await req.form()
+    control_type = form.get('control_type')
+    
+    if control_type == 'none':
+        # Text to Image view
+        return Div(
+            Label("Prompt:"),
+            Textarea("", 
+                id='prompt', 
+                name='prompt', 
+                placeholder='Describe what you want to generate',
+                rows=3),
+            Label("Negative Prompt:"),
+            Textarea("", 
+                id='negative_prompt', 
+                name='negative_prompt', 
+                placeholder='Describe what you want to avoid',
+                rows=2),
+            Script("""
+                document.getElementById('control-strength-div').classList.add('hidden');
+            """)
+        )
+    else:
+        # Sketch/Structure to Image view
+        return Div(
+            Label("Upload Image:"),
+            Input(
+                type="file",
+                name="image_file",
+                accept="image/*",
+                id="stability-file-input",
+                cls="file-input block w-full mb-4",
+                hx_trigger="change",
+                hx_post="/preview-stability-image",
+                hx_target="#stability-image-preview",
+                hx_encoding="multipart/form-data"
+            ),
+            Div(id="stability-image-preview", cls="mt-4"),
+            Label("Prompt:"),
+            Textarea("", 
+                id='prompt', 
+                name='prompt', 
+                placeholder='Describe what you want to generate',
+                rows=3),
+            Label("Negative Prompt:"),
+            Textarea("", 
+                id='negative_prompt', 
+                name='negative_prompt', 
+                placeholder='Describe what you want to avoid',
+                rows=2),
+            Script("""
+                document.getElementById('control-strength-div').classList.remove('hidden');
+            """)
+        )
+
+@rt("/preview-stability-image")
+async def post(req):
+    form = await req.form()
+    file = form.get('image_file')
+    if file and hasattr(file, 'file'):
+        content = await file.read()
+        base64_image = base64.b64encode(content).decode('utf-8')
+        return Img(
+            src=f"data:image/jpeg;base64,{base64_image}",
+            alt="Preview",
+            cls="max-w-sm h-auto rounded"
+        )
+    return ""
+
+@rt("/clear-stability-results")
+async def post(req):
+    return Div(id="stability-results", cls="generated-image")
+
+@rt("/test-delay")
+async def post(req):
+    await asyncio.sleep(3)
+    return "Test complete!"
+
+# Stability AI image generation API endpoint
+@rt("/api/stability/generate")
+async def post(req):
+    form = await req.form()
+    try:
+        # Get form parameters
+        api_key = form.get('api_key', '').strip()
+        if not api_key:
+            return Div("Please configure your Stability AI API key first", 
+                    cls="error alert alert-warning")
+        
+        prompt = form.get('prompt', '').strip()
+        if not prompt:
+            return Div("Please provide a prompt for the image generation", 
+                    cls="error alert alert-warning")
+            
+        negative_prompt = form.get('negative_prompt', '')
+        aspect_ratio = form.get('aspect_ratio', '3:2')
+        seed = int(form.get('seed', '0'))
+        output_format = form.get('output_format', 'jpeg')
+        control_strength = float(form.get('control_strength', '0.7'))
+        style_preset = form.get('style_preset', 'photographic')
+        
+        # Handle image upload if present
+        image_data = None
+        control_type = form.get('control_type', 'none')
+        if control_type in ['sketch', 'structure']:
+            image_file = form.get('image_file')
+            if image_file and image_file.file:
+                image_data = await image_file.read()
+        
+        # Set up API endpoint based on control type
+        if control_type == 'none':
+            host = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
+        else:
+            host = f"https://api.stability.ai/v2beta/stable-image/control/{control_type}"
+        
+        # Prepare request parameters
+        params = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "aspect_ratio": aspect_ratio,
+            "seed": str(seed),
+            "output_format": output_format,
+            "style_preset": style_preset
+        }
+        
+        # Add style_preset to params if one was selected
+        if control_type != 'none':
+            params["control_strength"] = str(control_strength)
+        
+        headers = {
+            "Accept": "image/*",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        # Prepare multipart form data
+        from requests_toolbelt.multipart.encoder import MultipartEncoder
+        fields = params.copy()
+        if image_data:
+            fields["image"] = ("image.jpg", image_data, "image/jpeg")
+        
+        encoder = MultipartEncoder(fields=fields)
+        headers["Content-Type"] = encoder.content_type
+        
+        # Make the request
+        response = requests.post(
+                    host, 
+                    headers=headers, 
+                    data=encoder
+                )
+
+        if not response.ok:
+            error_msg = response.json().get('message', response.text)
+            return Div(f"API Error: {error_msg}", 
+                    cls="error alert alert-danger")
+
+        # Process successful response
+        if response.content:
+            image_b64 = base64.b64encode(response.content).decode('utf-8', errors='ignore')
+            
+            return Div(
+                Div(
+                    P("Image generated successfully!", cls="text-success"),
+                    cls="mb-3"
+                ),
+                Div(
+                    Img(
+                        src=f"data:image/jpeg;base64,{image_b64}", 
+                        alt="Generated image",
+                        cls="result-image max-w-full h-auto rounded shadow-lg"
+                    ),
+                    cls="image-container"
+                ),
+                id="results-area",
+                cls="generated-image mt-4"
+            )
+        else:
+            return Div("No image data received from API", 
+                    cls="error alert alert-warning")
+
+    except Exception as e:
+        import traceback
+        print(f"Generator error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return Div(f"An error occurred: {str(e)}", 
+                cls="error alert alert-danger")
+
+# Stability AI video generation API endpoint
+@rt("/api/stability/generate-video")
+async def post(req):
+    try:
+        form = await req.form()
+        api_key = form.get('api_key', '').strip()
+        if not api_key:
+            return Div("Please configure your Stability AI API key first", 
+                    cls="error alert alert-warning")
+        
+        # Get uploaded image
+        from starlette.datastructures import UploadFile
+        upload_file = form.get('file')
+        
+        if not upload_file:
+            return Div("No file was uploaded. Please select an image file.", 
+                    cls="error alert alert-warning")
+                    
+        if not isinstance(upload_file, UploadFile):
+            return Div("Invalid file format. Please try again.", 
+                    cls="error alert alert-warning")
+        
+        # Get file data
+        image_data = await upload_file.read()
+        filename = upload_file.filename
+
+        # Determine content type from filename
+        if filename.lower().endswith(('.jpg', '.jpeg')):
+            content_type = 'image/jpeg'
+        elif filename.lower().endswith('.png'):
+            content_type = 'image/png'
+        else:
+            return Div("Please upload a JPEG or PNG image", 
+                    cls="error alert alert-warning")
+
+        # Get other form parameters
+        seed = int(form.get('seed', '0'))
+        cfg_scale = float(form.get('cfg_scale', '1.8'))
+        motion_bucket_id = int(form.get('motion_bucket_id', '127'))
+
+        # Initial request to start generation
+        response = requests.post(
+            "https://api.stability.ai/v2beta/image-to-video",
+            headers={
+                "Authorization": f"Bearer {api_key}"
+            },
+            files={
+                "image": (filename, image_data, content_type)
+            },
+            data={
+                "seed": seed,
+                "cfg_scale": cfg_scale,
+                "motion_bucket_id": motion_bucket_id
+            }
+        )
+
+        if not response.ok:
+            error_msg = response.json().get('message', response.text)
+            return Div(f"API Error: {error_msg}", 
+                    cls="error alert alert-danger")
+
+        generation_id = response.json().get('id')
+        
+        # Start polling for results
+        max_attempts = 30  # 5 minutes maximum (10 second intervals)
+        for attempt in range(max_attempts):
+            time.sleep(10)  # Wait 10 seconds between polls
+            
+            result_response = requests.get(
+                f"https://api.stability.ai/v2beta/image-to-video/result/{generation_id}",
+                headers={
+                    'Accept': 'application/json',
+                    'Authorization': f"Bearer {api_key}"
+                }
+            )
+
+            if result_response.status_code == 200:
+                # Video is ready
+                video_data = result_response.json().get('video')
+                if video_data:
+                    return Div(
+                        Video(
+                            Source(src=f"data:video/mp4;base64,{video_data}",
+                                  type="video/mp4"),
+                            controls=True,
+                            autoplay=True,
+                            loop=True,
+                            cls="result-video"
+                        ),
+                        id="video-result",
+                        cls="generated-video"
+                    )
+            elif result_response.status_code != 202:
+                # Error occurred
+                error_msg = result_response.json().get('message', 'Unknown error occurred')
+                return Div(f"Error retrieving video: {error_msg}",
+                         cls="error alert alert-danger")
+
+        return Div("Video generation timed out. Please try again.",
+                  cls="error alert alert-warning")
+
+    except Exception as e:
+        print(f"Error in video generation: {str(e)}")
+        return Div(f"An error occurred: {str(e)}", 
+                cls="error alert alert-danger")
 
 serve()
