@@ -1011,6 +1011,7 @@ def create_html5_form(api_key=None):
                                  cls="block mb-2 text-white", 
                                  style="color: #ffffff !important; font-weight: bold;"),
                             Select(
+                                Option("Claude 4 Sonnet", value="claude-sonnet-4-20250514"),
                                 Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
                                 Option("Gemini 2.5 Pro", value="gemini-2.5-pro-exp-03-25"),
                                 Option("GPT-o3", value="o3-2025-04-16"),
@@ -1086,6 +1087,7 @@ def create_html5_form(api_key=None):
                                  cls="block mb-2 text-white", 
                                  style="color: #ffffff !important; font-weight: bold;"),
                             Select(
+                                Option("Claude 4 Sonnet", value="claude-sonnet-4-20250514"),
                                 Option("Claude 3.7 Sonnet", value="claude-3-7-sonnet-20250219"),
                                 Option("Gemini 2.5 Pro", value="gemini-2.5-pro-exp-03-25"),
                                 Option("GPT-o3", value="o3-2025-04-16"),
