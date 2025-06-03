@@ -1435,7 +1435,7 @@ def routes(rt):
                     P("Please try again with different instructions or a different model", cls="mb-3"),
                     Div(
                         Button(
-                            "Try with Claude 3.7 Sonnet",
+                            "Try with Claude 4 Sonnet",
                             cls="px-4 py-2 bg-purple-500 text-white rounded mr-2",
                             hx_post="/api/html5/generate-code",
                             hx_include="closest form",

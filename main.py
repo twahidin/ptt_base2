@@ -380,6 +380,7 @@ def create_side_menu(active_menu=None):
             "name": "HTML5 Interactive Editor",
             "has_submenu": False
         },
+
         {
             "id": "primary", 
             "name": "Primary School Interactives Gallery (Submission Page)",
@@ -420,6 +421,11 @@ def create_side_menu(active_menu=None):
             "submenu": [
                 {"id": "tokens/replace_zip", "name": "Replace Interactive ZIP"}
             ]
+        },
+        {
+            "id": "lesson-generator", 
+            "name": "🎓 AI Lesson Generator",
+            "has_submenu": False
         },
         # Image Generation Menu with submenus
         {
@@ -539,6 +545,21 @@ def get(req):
         P("Please select an option from the submenu."),
         cls="menu-content"
     )
+
+@rt("/lesson-generator")
+def get(req):
+    """Handle lesson generator navigation from side menu"""
+    # Import here to avoid circular imports
+    auth = req.session.get('auth')
+    from components.acp_edit_form import lesson_generator_form
+    if auth not in ["joe", "david","bernice","zoe", "norman","dean","sulin","super_admin"]:
+        return Div(
+            H2("Access Denied"),
+            P("You do not have permission to access this page."),
+            cls="menu-content error"
+        )
+    
+    return Title("Lesson Generator"), lesson_generator_form.create_lesson_input_form()
 
 @rt("/tokens/replace_zip")
 def get(req):

@@ -10,6 +10,7 @@ from .primary_school import routes as primary_school_routes
 from .secondary_school import routes as secondary_school_routes
 from .jc_ci import routes as jc_ci_routes
 from .api import routes as api_routes
+from .acp_edit import routes as acp_edit_routes
 
 def setup_routes(app):
     # Create routers for each module
@@ -24,6 +25,7 @@ def setup_routes(app):
     secondary_school_router = APIRouter(prefix="")
     jc_ci_router = APIRouter(prefix="")
     api_router = APIRouter(prefix="")
+    acp_edit_router = APIRouter(prefix="")
     
     # Add routes to routers
 
@@ -37,6 +39,7 @@ def setup_routes(app):
     secondary_school_routes(secondary_school_router)
     jc_ci_routes(jc_ci_router)
     api_routes(api_router)
+    acp_edit_routes(acp_edit_router)
     
     # Add routers to app
 
@@ -50,3 +53,4 @@ def setup_routes(app):
     secondary_school_router.to_app(app)
     jc_ci_router.to_app(app)
     api_router.to_app(app)
+    acp_edit_router.to_app(app)
